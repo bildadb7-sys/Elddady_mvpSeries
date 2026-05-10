@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#E86C44">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Elddady</title>
+    <link rel="icon" type="image/png" href="/logo.png">
+    <link rel="apple-touch-icon" href="/logo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Grand+Hotel&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" },
+                    colors: {
+                        background: "var(--background)", foreground: "var(--foreground)",
+                        card: { DEFAULT: "var(--card)", foreground: "var(--card-foreground)" },
+                        primary: { DEFAULT: "var(--primary)", foreground: "var(--primary-foreground)" },
+                        secondary: { DEFAULT: "var(--secondary)", foreground: "var(--secondary-foreground)" },
+                        border: "var(--border)", input: "var(--input)", ring: "var(--ring)",
+                    },
+                    fontFamily: { sans: ["Inter", "sans-serif"], logo: ["Grand Hotel", "cursive"] }
+                }
+            }
+        };
+    </script>
+
+    <style>
+        :root {
+            --background: hsl(45 30% 98%);
+            --foreground: hsl(25 15% 15%);
+            --card: hsl(45 20% 96%);
+            --primary: hsl(15 70% 55%);
+            --border: hsl(35 25% 85%);
+            --radius: 12px;
+        }
+
+        .dark {
+            --background: hsl(20 10% 10%);
+            --foreground: hsl(45 30% 95%);
+            --card: hsl(20 10% 13%);
+            --primary: hsl(15 70% 60%);
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--foreground);
+        }
+
+        /* Tooltip styling for hover names */
+        .custom-tooltip {
+            position: relative;
+        }
+
+        .custom-tooltip::after {
+            content: attr(data-title);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%) translateY(5px);
+            background: #000;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            pointer-events: none;
+        }
+
+        /* Mobile specific positioning: Reveal BELOW the buttons */
+        @media (max-width: 768px) {
+            .custom-tooltip::after {
+                top: 110%;
+                /* Move to below the button */
+                bottom: auto;
+                transform: translateX(-50%) translateY(-5px);
+            }
+
+            .custom-tooltip:hover::after {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+                visibility: visible;
+            }
+
+            /* Specifically remove tooltips for products in Explore and Vroom as requested */
+            .explore-grid .custom-tooltip::after,
+            .vroom-grid .custom-tooltip::after {
+                display: none !important;
+            }
+        }
+
+        .custom-tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Comment Threading Visuals */
+        .thread-container {
+            position: relative;
+        }
+
+        .thread-line {
+            position: absolute;
+            left: -24px;
+            top: -12px;
+            width: 20px;
+            height: 32px;
+            border-left: 2px solid #E86C44;
+            border-bottom: 2px solid #E86C44;
+            border-bottom-left-radius: 12px;
+            opacity: 0.3;
+        }
+
+        /* Elddady Themed Comment Text */
+        .comment-text {
+            color: var(--foreground) !important;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        .comment-bubble {
+            background: hsl(45 20% 94%);
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .dark .comment-bubble {
+            background: hsl(20 10% 15%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Hide Scrollbars Utility */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        /* PWA Safety Area */
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.90.1",
+    "react-select/": "https://esm.sh/react-select@^5.10.2/",
+    "helmet": "https://esm.sh/helmet@^8.1.0",
+    "hpp": "https://esm.sh/hpp@^0.2.3",
+    "xss-clean": "https://esm.sh/xss-clean@^0.1.4",
+    "express": "https://esm.sh/express@^5.2.1",
+    "ioredis": "https://esm.sh/ioredis@^5.9.1",
+    "cors": "https://esm.sh/cors@^2.8.5",
+    "crypto": "https://esm.sh/crypto@^1.0.1",
+    "pluralize": "https://esm.sh/pluralize@^8.0.0",
+    "bcryptjs": "https://esm.sh/bcryptjs@^3.0.3",
+    "wink-nlp": "https://esm.sh/wink-nlp@^2.4.0",
+    "wink-eng-lite-web-model": "https://esm.sh/wink-eng-lite-web-model@^1.8.1",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "@refinedev/core": "https://esm.sh/@refinedev/core@^5.0.8",
+    "@refinedev/react-router-v6": "https://esm.sh/@refinedev/react-router-v6@^4.6.2",
+    "@refinedev/supabase": "https://esm.sh/@refinedev/supabase@^6.0.1",
+    "jsonwebtoken": "https://esm.sh/jsonwebtoken@^9.0.3",
+    "dotenv/": "https://esm.sh/dotenv@^17.2.3/",
+    "express-validator": "https://esm.sh/express-validator@^7.3.1"
+  }
+}
+</script>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+</body>
+
+</html>
