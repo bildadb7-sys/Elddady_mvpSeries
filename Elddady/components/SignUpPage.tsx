@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
 interface SignUpPageProps {
@@ -8,6 +9,7 @@ interface SignUpPageProps {
 }
 
 const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onSwitchToLogin }) => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         firstName: '',
         secondName: '',
@@ -263,7 +265,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onSwitchToLogi
                                 />
                             </div>
                             <label htmlFor="agreedToTerms" className="text-xs text-muted-foreground cursor-pointer">
-                                I agree to Elddady's T&C <button type="button" className="text-[#E86C44] hover:underline font-bold">Terms of Service</button> and <button type="button" className="text-[#E86C44] hover:underline font-bold">Privacy Policy</button>.
+                                I agree to Elddady's T&C <button type="button" onClick={() => navigate('/terms')} className="text-[#E86C44] hover:underline font-bold">Terms of Service</button> and <button type="button" onClick={() => navigate('/privacy')} className="text-[#E86C44] hover:underline font-bold">Privacy Policy</button>.
                             </label>
                         </div>
 

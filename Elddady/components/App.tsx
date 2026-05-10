@@ -16,6 +16,8 @@ import ShareModal from './ShareModal';
 import Header from './Header';
 import ScrollToTopButton from './ScrollToTopButton';
 import AdminDashboard from './AdminDashboard';
+import PrivacyPolicyPage from './PrivacyPolicyPage';
+import TermsAndConditionsPage from './TermsAndConditionsPage';
 import { CheckoutModal, PostModal, ForwardMessageModal } from './Modals';
 import { Page, Product, CartItem, Post, Vroom as VroomType, User, Conversation } from '../types';
 import { api } from '../api';
@@ -295,6 +297,12 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated || isAuthenticated === 'google_unregistered') {
+    if (location.pathname === '/privacy') {
+      return <PrivacyPolicyPage />;
+    }
+    if (location.pathname === '/terms') {
+      return <TermsAndConditionsPage />;
+    }
     return <LandingPage
       onLogin={handleLogin}
       onSignUp={handleSignUpSuccess}
@@ -363,6 +371,8 @@ const App: React.FC = () => {
             />
           ) : <Navigate to="/" />
         } />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsAndConditionsPage />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     );

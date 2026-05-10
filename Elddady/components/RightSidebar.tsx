@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { supabase } from '../supabaseClient';
 import { Vroom, SearchResults, User } from '../types';
@@ -15,6 +16,7 @@ interface RightSidebarProps {
 }
 
 const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose, onHashtagClick, onVroomClick, currentUser, onUserClick }) => {
+    const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
     const [popularVrooms, setPopularVrooms] = useState<any[]>([]);
@@ -371,8 +373,8 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen, onClose, onHashtagC
                                 </div>
 
                                 <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 px-2 pb-10 flex-shrink-0">
-                                    <span className="hover:underline cursor-pointer">Terms</span>
-                                    <span className="hover:underline cursor-pointer">Privacy</span>
+                                    <span onClick={() => navigate('/terms')} className="hover:underline cursor-pointer">Terms</span>
+                                    <span onClick={() => navigate('/privacy')} className="hover:underline cursor-pointer">Privacy</span>
                                     <span className="hover:underline cursor-pointer">© 2025 Elddady</span>
                                 </div>
                             </>
