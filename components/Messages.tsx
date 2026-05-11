@@ -526,7 +526,10 @@ const ChatDetail: React.FC<{
                         ) : (
                             <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'} group relative ${msg.isDeleted ? 'opacity-60' : ''}`}>
                                 {chat.isGroup && !msg.isMe && !msg.isDeleted && (
-                                    <span className="text-[10px] text-muted-foreground ml-2 mb-1 font-semibold">{msg.senderName}</span>
+                                    <span
+                                        className="text-[10px] text-muted-foreground ml-2 mb-1 font-semibold cursor-pointer hover:text-[#E86C44] hover:underline transition-colors"
+                                        onClick={() => onUserClick && onUserClick(msg.senderId)}
+                                    >{msg.senderName}</span>
                                 )}
 
                                 <div className={`max-w-[75%] relative ${msg.isMe ? 'flex flex-row-reverse' : 'flex flex-row'} items-end gap-2`}>

@@ -370,6 +370,14 @@ const Explore: React.FC<ExploreProps> = ({ onAddToCart, onProductClick, onShare,
                                                     </div>
                                                     <div className="p-2 space-y-1">
                                                         <h4 className="font-bold truncate text-sm group-hover:text-[#E86C44] transition-colors">{item.name}</h4>
+                                                        {item.ownerName && (
+                                                            <p className="text-[10px] text-muted-foreground truncate">
+                                                                by <span
+                                                                    className="cursor-pointer hover:text-[#E86C44] hover:underline transition-colors"
+                                                                    onClick={(e) => { e.stopPropagation(); item.ownerId && onUserClick && onUserClick(item.ownerId); }}
+                                                                >{item.ownerName}</span>
+                                                            </p>
+                                                        )}
                                                         <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground">
                                                             <span>{item.productCount} Products</span>
                                                             <span>·</span>

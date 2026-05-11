@@ -10,9 +10,10 @@ interface VroomProps {
     onAddToCart: (product: Product) => void;
     onProductClick: (product: Product) => void;
     onShare: (product: Product) => void;
+    onUserClick?: (userId: string) => void;
 }
 
-const Vroom: React.FC<VroomProps> = ({ vroom, onAddToCart, onProductClick, onShare }) => {
+const Vroom: React.FC<VroomProps> = ({ vroom, onAddToCart, onProductClick, onShare, onUserClick }) => {
     // Local state to handle updates (mocking persistence)
     const [currentVroom, setCurrentVroom] = useState(vroom);
 
@@ -235,7 +236,12 @@ const Vroom: React.FC<VroomProps> = ({ vroom, onAddToCart, onProductClick, onSha
                                             <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center overflow-hidden">
                                                 <i className="fas fa-user text-xs text-muted-foreground"></i>
                                             </div>
-                                            <span className="text-sm font-medium text-foreground/80">{currentVroom.ownerName || 'Owner'}</span>
+                                            <span
+                                                className="text-sm font-medium text-foreground/80 cursor-pointer hover:text-[#E86C44] hover:underline transition-colors"
+                                                onClick={() => currentVroom.ownerId && onUserClick && onUserClick(currentVroom.ownerId)}
+                                            >
+                                                {currentVroom.ownerName || 'Owner'}
+                                            </span>
                                         </div>
                                         <div className="flex gap-4 text-xs text-muted-foreground font-medium">
                                             <span>{currentVroom.products.length} products</span>
@@ -302,7 +308,10 @@ const Vroom: React.FC<VroomProps> = ({ vroom, onAddToCart, onProductClick, onSha
                                     </div>
 
                                     <div className="text-[10px] text-muted-foreground mb-4">
-                                        by {currentVroom.ownerName || 'Owner'}
+                                        by <span
+                                            className="cursor-pointer hover:text-[#E86C44] hover:underline transition-colors"
+                                            onClick={(e) => { e.stopPropagation(); currentVroom.ownerId && onUserClick && onUserClick(currentVroom.ownerId); }}
+                                        >{currentVroom.ownerName || 'Owner'}</span>
                                     </div>
 
                                     {/* Reaction Buttons Row - Compact Grid */}

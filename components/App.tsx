@@ -25,10 +25,44 @@ import { EMPTY_USER } from '../constants';
 import { supabase } from '../supabaseClient';
 import { CurrencyProvider } from '../context/CurrencyContext';
 import { NotificationProvider } from '../context/NotificationContext';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 
 // Pages that can be safely restored after a browser reload (excludes ephemeral pages like PUBLIC_PROFILE)
 const PERSISTABLE_PAGES: Page[] = [Page.FEED, Page.EXPLORE, Page.VROOMS, Page.MESSAGES, Page.PROFILE];
+
+// Wrapper component to extract userId from URL params for the public profile route
+const UserProfileRoute: React.FC<{
+  currentUserId: string;
+  onNavigate: (page: any) => void;
+  onVroomClick: (vroom: any) => void;
+  onChat: (targetUser: User) => void;
+  onUserClick: (userId: string) => void;
+  viewingUserProfileId: string | null;
+  setViewingUserProfileId: (id: string | null) => void;
+}> = ({ currentUserId, onNavigate, onVroomClick, onChat, onUserClick, viewingUserProfileId, setViewingUserProfileId }) => {
+  const { userId } = useParams<{ userId: string }>();
+  const resolvedId = userId || viewingUserProfileId;
+
+  // Sync the state if navigating via URL directly
+  React.useEffect(() => {
+    if (userId && userId !== viewingUserProfileId) {
+      setViewingUserProfileId(userId);
+    }
+  }, [userId]);
+
+  if (!resolvedId) return <Navigate to="/" />;
+
+  return (
+    <UserProfile
+      userId={resolvedId}
+      currentUserId={currentUserId}
+      onNavigate={onNavigate}
+      onVroomClick={onVroomClick}
+      onChat={onChat}
+      onUserClick={onUserClick}
+    />
+  );
+};
 
 const App: React.FC = () => {
   const navigate = useNavigate();
@@ -235,7 +269,7 @@ const App: React.FC = () => {
       setCurrentPage(Page.PROFILE);
     } else {
       setViewingUserProfileId(userId);
-      setCurrentPage(Page.PUBLIC_PROFILE);
+      navigate(`/user/${userId}`);
     }
     setIsRightSidebarOpen(false); // Close sidebar if open
   };
@@ -330,113 +364,111 @@ const App: React.FC = () => {
         </div>
       );
     }
+    return null;
+  };
 
-    const defaultProps = {
-      onAddToCart: handleAddToCart,
-      onProductClick: setActiveProduct,
-      onShare: (p: Product) => { setShareProduct(p); setIsShareModalOpen(true); },
-      onVroomClick: handleVroomNavigation,
-      currentUser: currentUser,
-      onUserClick: handleViewUser
-    };
+  const defaultProps = {
+    onAddToCart: handleAddToCart,
+    onProductClick: setActiveProduct,
+    onShare: (p: Product) => { setShareProduct(p); setIsShareModalOpen(true); },
+    onVroomClick: handleVroomNavigation,
+    currentUser: currentUser,
+    onUserClick: handleViewUser
+  };
 
-    return (
-      <Routes>
-        <Route path="/" element={<Feed posts={posts} {...defaultProps} />} />
-        <Route path="/explore" element={<Explore {...defaultProps} initialSearchQuery={exploreQuery} />} />
-        <Route path="/vrooms" element={<Vrooms initialVroomData={selectedVroomToOpen || undefined} {...defaultProps} />} />
-        <Route path="/messages" element={
-          <Messages
-            conversations={conversations}
-            onSendMessage={api.sendMessage}
+  const errorContent = renderContent();
+
+  const appLayout = (child: React.ReactNode) => (
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      <CartOverlay
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cartItems={cart}
+        onRemoveItem={(id) => setCart(cart.filter(i => i.id !== id))}
+        onUpdateQuantity={handleUpdateQuantity}
+        onCheckout={() => { setIsCartOpen(false); setIsCheckoutOpen(true); }}
+      />
+      <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} onConfirm={() => setCart([])} cartItems={cart} />
+      <ResetPasswordModal isOpen={showResetPasswordModal} onClose={() => setShowResetPasswordModal(false)} />
+      <PostModal isOpen={isPostModalOpen} onClose={() => setIsPostModalOpen(false)} onSubmit={async (data) => { await api.postProduct(data); loadData(); }} />
+      {activeProduct && <ProductDetailModal isOpen={true} onClose={() => setActiveProduct(null)} product={activeProduct} currentUser={currentUser} onAddToCart={(p) => { handleAddToCart(p); setIsCartOpen(true); }} onShare={(p) => { setShareProduct(p); setIsShareModalOpen(true); }} onUserClick={handleViewUser} />}
+      {shareProduct && <ShareModal isOpen={isShareModalOpen} onClose={() => { setIsShareModalOpen(false); setShareProduct(null); }} productName={shareProduct.name} productUrl={`${window.location.origin}/#/product/${shareProduct.id}`} title="Share Product" />}
+
+      <ForwardMessageModal isOpen={isForwardModalOpen} onClose={() => { setIsForwardModalOpen(false); setMessageToForward(null); }} message={messageToForward} conversations={conversations} onForward={handleForwardMessage} />
+
+      <Header
+        currentUser={currentUser}
+        cartItemCount={cart.length}
+        onNavigate={setCurrentPage}
+        onToggleCart={() => setIsCartOpen(true)}
+      />
+
+      <div className="flex justify-center min-h-screen w-full">
+        <aside className="hidden md:flex flex-col h-screen sticky top-0 w-[72px] lg:w-[240px] xl:w-[275px] z-30 flex-shrink-0 border-r border-border">
+          <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} cartItemCount={cart.length} unreadMessagesCount={unreadConvsCount} onToggleCart={() => setIsCartOpen(true)} onOpenPostModal={() => setIsPostModalOpen(true)} onLogout={handleLogout} />
+        </aside>
+
+        <div className="flex-1 flex flex-col min-w-0 max-w-[550px] border-r border-border h-screen relative pt-16 md:pt-0">
+          <main className="flex-1 overflow-y-auto no-scrollbar pb-20 md:pb-0 w-full">
+            {errorContent || child}
+          </main>
+          <div className="md:hidden">
+            <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} cartItemCount={cart.length} unreadMessagesCount={unreadConvsCount} onToggleCart={() => setIsCartOpen(true)} onOpenPostModal={() => setIsPostModalOpen(true)} onLogout={handleLogout} />
+          </div>
+        </div>
+        <div className="hidden md:block md:w-[200px] lg:w-[320px] xl:w-[350px] h-screen sticky top-0">
+          {/* Right Sidebar acts as the search/discovery engine. Clicking a user result here should trigger the profile view. */}
+          <RightSidebar
+            isOpen={isRightSidebarOpen}
+            onClose={() => setIsRightSidebarOpen(false)}
+            onHashtagClick={(tag) => { setExploreQuery(tag); setCurrentPage(Page.EXPLORE); }}
+            onVroomClick={handleVroomNavigation}
             currentUser={currentUser}
             onUserClick={handleViewUser}
-            onMarkAsRead={(id: string) => setConversations(prev => prev.map(c => c.id === id ? { ...c, unreadCount: 0 } : c))}
-            onForward={(msg) => { setMessageToForward(msg); setIsForwardModalOpen(true); }}
-            onInternalLink={processDeepLink}
           />
-        } />
-        <Route path="/profile" element={
-          <Profile user={currentUser} isOwner={true} onPostProduct={() => setIsPostModalOpen(true)} onUserUpdate={setCurrentUser} {...defaultProps} />
-        } />
-        <Route path="/user/:userId" element={
-          viewingUserProfileId ? (
-            <UserProfile
-              userId={viewingUserProfileId}
-              currentUserId={currentUser.id}
-              onNavigate={setCurrentPage}
-              onVroomClick={handleVroomNavigation}
-              onChat={handleStartChat}
-              onUserClick={handleViewUser}
-            />
-          ) : <Navigate to="/" />
-        } />
-        <Route path="/privacy" element={<PrivacyPolicyPage />} />
-        <Route path="/terms" element={<TermsAndConditionsPage />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    );
-  };
+        </div>
+      </div>
+
+      <ScrollToTopButton />
+    </div>
+  );
 
   return (
     <CurrencyProvider>
       <NotificationProvider currentUser={currentUser} onNavigate={setCurrentPage}>
         <Routes>
           <Route path="/bahati/*" element={currentUser.isAdmin ? <AdminDashboard /> : <Navigate to="/" />} />
-          <Route path="*" element={
-            <div className="min-h-screen bg-background text-foreground font-sans">
-              <CartOverlay
-                isOpen={isCartOpen}
-                onClose={() => setIsCartOpen(false)}
-                cartItems={cart}
-                onRemoveItem={(id) => setCart(cart.filter(i => i.id !== id))}
-                onUpdateQuantity={handleUpdateQuantity}
-                onCheckout={() => { setIsCartOpen(false); setIsCheckoutOpen(true); }}
-              />
-              <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} onConfirm={() => setCart([])} cartItems={cart} />
-              <ResetPasswordModal isOpen={showResetPasswordModal} onClose={() => setShowResetPasswordModal(false)} />
-              <PostModal isOpen={isPostModalOpen} onClose={() => setIsPostModalOpen(false)} onSubmit={async (data) => { await api.postProduct(data); loadData(); }} />
-              {activeProduct && <ProductDetailModal isOpen={true} onClose={() => setActiveProduct(null)} product={activeProduct} currentUser={currentUser} onAddToCart={(p) => { handleAddToCart(p); setIsCartOpen(true); }} onShare={(p) => { setShareProduct(p); setIsShareModalOpen(true); }} onUserClick={handleViewUser} />}
-              {shareProduct && <ShareModal isOpen={isShareModalOpen} onClose={() => { setIsShareModalOpen(false); setShareProduct(null); }} productName={shareProduct.name} productUrl={`${window.location.origin}/#/product/${shareProduct.id}`} title="Share Product" />}
-
-              <ForwardMessageModal isOpen={isForwardModalOpen} onClose={() => { setIsForwardModalOpen(false); setMessageToForward(null); }} message={messageToForward} conversations={conversations} onForward={handleForwardMessage} />
-
-              <Header
-                currentUser={currentUser}
-                cartItemCount={cart.length}
-                onNavigate={setCurrentPage}
-                onToggleCart={() => setIsCartOpen(true)}
-              />
-
-              <div className="flex justify-center min-h-screen w-full">
-                <aside className="hidden md:flex flex-col h-screen sticky top-0 w-[72px] lg:w-[240px] xl:w-[275px] z-30 flex-shrink-0 border-r border-border">
-                  <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} cartItemCount={cart.length} unreadMessagesCount={unreadConvsCount} onToggleCart={() => setIsCartOpen(true)} onOpenPostModal={() => setIsPostModalOpen(true)} onLogout={handleLogout} />
-                </aside>
-
-                <div className="flex-1 flex flex-col min-w-0 max-w-[550px] border-r border-border h-screen relative pt-16 md:pt-0">
-                  <main className="flex-1 overflow-y-auto no-scrollbar pb-20 md:pb-0 w-full">
-                    {renderContent()}
-                  </main>
-                  <div className="md:hidden">
-                    <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} cartItemCount={cart.length} unreadMessagesCount={unreadConvsCount} onToggleCart={() => setIsCartOpen(true)} onOpenPostModal={() => setIsPostModalOpen(true)} onLogout={handleLogout} />
-                  </div>
-                </div>
-                <div className="hidden md:block md:w-[200px] lg:w-[320px] xl:w-[350px] h-screen sticky top-0">
-                  {/* Right Sidebar acts as the search/discovery engine. Clicking a user result here should trigger the profile view. */}
-                  <RightSidebar
-                    isOpen={isRightSidebarOpen}
-                    onClose={() => setIsRightSidebarOpen(false)}
-                    onHashtagClick={(tag) => { setExploreQuery(tag); setCurrentPage(Page.EXPLORE); }}
-                    onVroomClick={handleVroomNavigation}
-                    currentUser={currentUser}
-                    onUserClick={handleViewUser}
-                  />
-                </div>
-              </div>
-
-              <ScrollToTopButton />
-            </div>
-          } />
+          <Route path="/" element={appLayout(<Feed posts={posts} {...defaultProps} />)} />
+          <Route path="/explore" element={appLayout(<Explore {...defaultProps} initialSearchQuery={exploreQuery} />)} />
+          <Route path="/vrooms" element={appLayout(<Vrooms initialVroomData={selectedVroomToOpen || undefined} {...defaultProps} />)} />
+          <Route path="/messages" element={appLayout(
+            <Messages
+              conversations={conversations}
+              onSendMessage={api.sendMessage}
+              currentUser={currentUser}
+              onUserClick={handleViewUser}
+              onMarkAsRead={(id: string) => setConversations(prev => prev.map(c => c.id === id ? { ...c, unreadCount: 0 } : c))}
+              onForward={(msg) => { setMessageToForward(msg); setIsForwardModalOpen(true); }}
+              onInternalLink={processDeepLink}
+            />
+          )} />
+          <Route path="/profile" element={appLayout(
+            <Profile user={currentUser} isOwner={true} onPostProduct={() => setIsPostModalOpen(true)} onUserUpdate={setCurrentUser} {...defaultProps} />
+          )} />
+          <Route path="/user/:userId" element={appLayout(
+            <UserProfileRoute
+              currentUserId={currentUser.id}
+              onNavigate={setCurrentPage}
+              onVroomClick={handleVroomNavigation}
+              onChat={handleStartChat}
+              onUserClick={handleViewUser}
+              viewingUserProfileId={viewingUserProfileId}
+              setViewingUserProfileId={setViewingUserProfileId}
+            />
+          )} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsAndConditionsPage />} />
+          <Route path="*" element={appLayout(<Feed posts={posts} {...defaultProps} />)} />
         </Routes>
       </NotificationProvider>
     </CurrencyProvider>
@@ -444,3 +476,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

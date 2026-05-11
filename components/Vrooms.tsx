@@ -661,7 +661,10 @@ const Vrooms: React.FC<VroomsProps> = ({ initialVroomData, onAddToCart, onProduc
                                     <img src={vroom.coverImage} className="w-16 h-16 rounded-lg object-cover" alt={vroom.name} />
                                     <div className="flex-1 min-w-0">
                                         <h4 className="font-bold text-sm truncate">{vroom.name}</h4>
-                                        <p className="text-xs text-muted-foreground truncate">{vroom.ownerName}</p>
+                                        <p
+                                        className="text-xs text-muted-foreground truncate cursor-pointer hover:text-[#E86C44] hover:underline transition-colors"
+                                        onClick={(e) => { e.stopPropagation(); vroom.ownerId && onUserClick && onUserClick(vroom.ownerId); }}
+                                    >{vroom.ownerName}</p>
                                         <div className="flex items-center gap-1 mt-1 text-[10px] text-[#E86C44] font-bold">
                                             <i className="fas fa-eye"></i> {vroom.views}
                                         </div>
@@ -686,7 +689,12 @@ const Vrooms: React.FC<VroomsProps> = ({ initialVroomData, onAddToCart, onProduc
                                 </div>
                                 <div className="p-3">
                                     <h4 className="font-bold text-sm truncate">{vroom.name}</h4>
-                                    <p className="text-xs text-muted-foreground mb-3 truncate">by {vroom.ownerName}</p>
+                                    <p className="text-xs text-muted-foreground mb-3 truncate">
+                                        by <span
+                                            className="cursor-pointer hover:text-[#E86C44] hover:underline transition-colors"
+                                            onClick={(e) => { e.stopPropagation(); vroom.ownerId && onUserClick && onUserClick(vroom.ownerId); }}
+                                        >{vroom.ownerName}</span>
+                                    </p>
 
                                     {/* Follow Button - HIDDEN for owner */}
                                     {vroom.ownerId !== currentUser.id && (
