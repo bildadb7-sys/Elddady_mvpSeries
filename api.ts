@@ -1776,6 +1776,7 @@ export const api = {
             })) as DetailedDispute[],
             zahidiBalance: appSettings?.zahidi_balance || 0,
             ppcCost: appSettings?.ppc_cost || 15,
+            adsEnabled: appSettings?.ads_enabled ?? true,
             boostedProducts: (boostedProducts || []).map((b: any) => ({
                 id: b.id,
                 productId: b.product_id,
@@ -1790,6 +1791,11 @@ export const api = {
 
     updatePPCCost: async (cost: number) => {
         const { error } = await supabase.from('app_settings').update({ ppc_cost: cost }).eq('id', 1);
+        if (error) throw error;
+    },
+
+    updateAdsEnabled: async (enabled: boolean) => {
+        const { error } = await supabase.from('app_settings').update({ ads_enabled: enabled }).eq('id', 1);
         if (error) throw error;
     },
 

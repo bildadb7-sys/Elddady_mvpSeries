@@ -6,11 +6,13 @@ import { PostReport, DetailedDispute } from '../types';
 
 const AdminDashboard: React.FC = () => {
    const navigate = useNavigate();
-   const [data, setData] = useState<{ reports: PostReport[], disputes: DetailedDispute[], zahidiBalance?: number, ppcCost?: number, boostedProducts?: any[] }>({ reports: [], disputes: [] });
+   const [data, setData] = useState<{ reports: PostReport[], disputes: DetailedDispute[], zahidiBalance?: number, ppcCost?: number, adsEnabled?: boolean, boostedProducts?: any[] }>({ reports: [], disputes: [] });
    const [loading, setLoading] = useState(true);
    const [activeTab, setActiveTab] = useState<'reports' | 'disputes' | 'zahidi' | 'comms'>('reports');
    const [adminBalance, setAdminBalance] = useState(0);
    const [newCPC, setNewCPC] = useState<number | ''>('');
+   const [adsEnabled, setAdsEnabled] = useState(true);
+   const [updatingAds, setUpdatingAds] = useState(false);
    const [commsTarget, setCommsTarget] = useState<string>('');
    const [commsMessage, setCommsMessage] = useState<string>('');
    const [commsSending, setCommsSending] = useState(false);
@@ -80,6 +82,7 @@ const AdminDashboard: React.FC = () => {
             setData(res);
             setAdminBalance(me.walletBalance || 0);
             setNewCPC(res.ppcCost || 15);
+            setAdsEnabled(res.adsEnabled ?? true);
          } catch (e) {
             console.error(e);
          } finally {
@@ -298,6 +301,51 @@ const AdminDashboard: React.FC = () => {
 
             {activeTab === 'zahidi' && (
                <div className="space-y-6">
+                  {/* Master Switch for Boost Product functionality */}
+                  <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                     <div>
+                        <div className="flex items-center gap-2">
+                           <span className={`w-2.5 h-2.5 rounded-full ${adsEnabled ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                           <h3 className="font-black text-sm uppercase tracking-widest text-zinc-900">"Boost Product" Visibility Control</h3>
+                        </div>
+                        <p className="text-xs text-zinc-500 mt-1 max-w-xl">
+                           {adsEnabled 
+                              ? "Status: Active. The Boost button is currently visible on users' products, allowing them to start promotions." 
+                              : "Status: Closed. The Boost button is completely hidden from user view across the entire platform."}
+                        </p>
+                     </div>
+                     <button
+                        onClick={async () => {
+                           try {
+                              setUpdatingAds(true);
+                              const nextState = !adsEnabled;
+                              await api.updateAdsEnabled(nextState);
+                              setAdsEnabled(nextState);
+                              setData(prev => ({ ...prev, adsEnabled: nextState }));
+                              alert(`"Boost product" functionality has been ${nextState ? 'opened (returned to user view)' : 'closed (hidden from user view)'} successfully.`);
+                           } catch (e: any) {
+                              alert("Failed to update status: " + e.message);
+                           } finally {
+                              setUpdatingAds(false);
+                           }
+                        }}
+                        disabled={updatingAds}
+                        className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm shrink-0 ${
+                           adsEnabled 
+                              ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100' 
+                              : 'bg-green-600 text-white hover:bg-green-700 shadow-green-600/20'
+                        }`}
+                     >
+                        {updatingAds ? (
+                           <i className="fas fa-circle-notch fa-spin"></i>
+                        ) : adsEnabled ? (
+                           <><i className="fas fa-eye-slash"></i> Close Boost Feature</>
+                        ) : (
+                           <><i className="fas fa-eye"></i> Open Boost Feature</>
+                        )}
+                     </button>
+                  </div>
+
                   <div className="grid md:grid-cols-2 gap-6">
                      <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
                         <div>
