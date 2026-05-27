@@ -392,7 +392,7 @@ const App: React.FC = () => {
       <ResetPasswordModal isOpen={showResetPasswordModal} onClose={() => setShowResetPasswordModal(false)} />
       <PostModal isOpen={isPostModalOpen} onClose={() => setIsPostModalOpen(false)} onSubmit={async (data) => { await api.postProduct(data); loadData(); }} />
       {activeProduct && <ProductDetailModal isOpen={true} onClose={() => setActiveProduct(null)} product={activeProduct} currentUser={currentUser} onAddToCart={(p) => { handleAddToCart(p); setIsCartOpen(true); }} onShare={(p) => { setShareProduct(p); setIsShareModalOpen(true); }} onUserClick={handleViewUser} />}
-      {shareProduct && <ShareModal isOpen={isShareModalOpen} onClose={() => { setIsShareModalOpen(false); setShareProduct(null); }} productName={shareProduct.name} productUrl={`${window.location.origin}/#/product/${shareProduct.id}`} title="Share Product" />}
+      {shareProduct && <ShareModal isOpen={isShareModalOpen} onClose={() => { setIsShareModalOpen(false); setShareProduct(null); }} productName={shareProduct.name} productUrl={`${window.location.origin}/#/product/${shareProduct.id}`} title="Share Product" productId={shareProduct.id} productImage={shareProduct.image} productDescription={shareProduct.description} productPrice={shareProduct.price} productCurrency={shareProduct.currency} />}
 
       <ForwardMessageModal isOpen={isForwardModalOpen} onClose={() => { setIsForwardModalOpen(false); setMessageToForward(null); }} message={messageToForward} conversations={conversations} onForward={handleForwardMessage} />
 
@@ -450,6 +450,8 @@ const App: React.FC = () => {
               onMarkAsRead={(id: string) => setConversations(prev => prev.map(c => c.id === id ? { ...c, unreadCount: 0 } : c))}
               onForward={(msg) => { setMessageToForward(msg); setIsForwardModalOpen(true); }}
               onInternalLink={processDeepLink}
+              onProductClick={setActiveProduct}
+              onAddToCart={(p) => { handleAddToCart(p); setIsCartOpen(true); }}
             />
           )} />
           <Route path="/profile" element={appLayout(

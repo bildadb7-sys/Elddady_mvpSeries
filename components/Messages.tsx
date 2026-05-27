@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Conversation, Message, User, Reaction } from '../types';
+import { Conversation, Message, User, Reaction, SharedProduct, Product } from '../types';
 import { api } from '../api';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
@@ -12,6 +12,8 @@ interface MessagesProps {
     onMarkAsRead?: (conversationId: string) => void;
     onForward?: (msg: Message) => void;
     onInternalLink?: (path: string) => void;
+    onProductClick?: (product: Product) => void;
+    onAddToCart?: (product: Product) => void;
 }
 
 const REACTION_EMOJIS = ['❤️', '😂', '😮', '😢', '🔥', '👍', '🙏'];
@@ -140,6 +142,214 @@ const CollapsibleMessageText: React.FC<{ content: string; isDeleted?: boolean; o
                   Show Less
                 </button>
             )}
+        </div>
+    );
+};
+
+
+// --- Product Card Sharing ---
+
+const PRODUCT_CARD_PREFIX = '__PRODUCT_CARD__';
+
+const parseSharedProduct = (content: string): SharedProduct | null => {
+    if (!content || !content.startsWith(PRODUCT_CARD_PREFIX)) return null;
+    try {
+        const json = content.slice(PRODUCT_CARD_PREFIX.length);
+        const data = JSON.parse(json);
+        if (data && data.id && data.name && data.image) return data as SharedProduct;
+    } catch { /* not valid JSON */ }
+    return null;
+};
+
+const SharedProductCard: React.FC<{
+    product: SharedProduct;
+    isMe: boolean;
+    currentUser: User;
+    onProductClick?: (product: Product) => void;
+    onAddToCart?: (product: Product) => void;
+}> = ({ product, isMe, currentUser, onProductClick, onAddToCart }) => {
+    // Live product data (fetched from API), falls back to embedded snapshot
+    const [liveData, setLiveData] = useState<Product | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLiked, setIsLiked] = useState(false);
+    const [likes, setLikes] = useState(0);
+    const [isBookmarked, setIsBookmarked] = useState(false);
+
+    // Fetch fresh product data on mount
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const fresh = await api.getProductById(product.id);
+                if (!cancelled && fresh) {
+                    setLiveData(fresh);
+                    setIsLiked(!!fresh.isLiked);
+                    setLikes(fresh.likes || 0);
+                    setIsBookmarked(!!fresh.isBookmarked);
+                }
+            } catch {
+                // Product may have been deleted — keep embedded snapshot
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [product.id]);
+
+    // Use live data if available, otherwise embedded snapshot
+    const displayName = liveData?.name ?? product.name;
+    const displayDesc = liveData?.description ?? product.description;
+    const displayPrice = liveData?.price ?? product.price;
+    const displayCurrency = liveData?.currency ?? product.currency;
+    const displayImage = liveData?.image ?? product.image;
+    const isOutOfStock = liveData?.isOutOfStock ?? false;
+
+    // Build a Product-shaped object for callbacks
+    const toProduct = (): Product => ({
+        id: product.id,
+        name: displayName,
+        description: displayDesc,
+        price: displayPrice,
+        currency: displayCurrency,
+        image: displayImage,
+        likes: likes,
+        isLiked: isLiked,
+        isBookmarked: isBookmarked,
+        isOutOfStock: isOutOfStock,
+        userId: liveData?.userId
+    });
+
+    const handleLike = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const wasLiked = isLiked;
+        setIsLiked(!wasLiked);
+        setLikes(prev => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+        try {
+            const result = await api.toggleLike(product.id);
+            setIsLiked(result.isLiked);
+            setLikes(result.likes);
+        } catch {
+            setIsLiked(wasLiked);
+            setLikes(prev => wasLiked ? prev + 1 : Math.max(0, prev - 1));
+        }
+    };
+
+    const handleBookmark = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const result = await api.toggleBookmark(product.id);
+            setIsBookmarked(result.isBookmarked);
+        } catch { /* ignore */ }
+    };
+
+    const handleAddToCart = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isOutOfStock) return;
+        if (onAddToCart) onAddToCart(toProduct());
+    };
+
+    const handleCardClick = () => {
+        if (onProductClick) onProductClick(toProduct());
+    };
+
+    // Format price with currency symbol
+    const formatPrice = (price: number, currency: string) => {
+        try {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(price);
+        } catch {
+            return `${currency || '$'}${price.toFixed(2)}`;
+        }
+    };
+
+    return (
+        <div className="w-[280px] rounded-xl overflow-hidden border border-border/30 bg-white dark:bg-zinc-900 shadow-sm">
+            {/* Product Image */}
+            <div
+                className="relative cursor-pointer hover:opacity-95 transition-opacity bg-black"
+                onClick={handleCardClick}
+            >
+                <img
+                    src={displayImage}
+                    alt={displayName}
+                    className={`w-full h-[180px] object-cover transition-opacity ${isLoading ? 'opacity-80' : ''}`}
+                />
+                {/* Gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                {/* Shared badge */}
+                <div className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full flex items-center gap-1">
+                    <i className="fas fa-shopping-bag text-[8px]" />
+                    Product
+                </div>
+                {/* Out of stock overlay */}
+                {isOutOfStock && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center pointer-events-none">
+                        <span className="border-2 border-white text-white font-black text-sm px-4 py-1.5 transform -rotate-12 uppercase tracking-widest opacity-80">
+                            Out of Stock
+                        </span>
+                    </div>
+                )}
+                {/* Loading shimmer */}
+                {isLoading && (
+                    <div className="absolute bottom-2 right-2">
+                        <i className="fas fa-circle-notch fa-spin text-white/70 text-xs" />
+                    </div>
+                )}
+            </div>
+
+            {/* Product Info */}
+            <div className="p-3 space-y-2">
+                <div
+                    className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={handleCardClick}
+                >
+                    <h4 className="font-bold text-sm truncate pr-2 uppercase tracking-tight text-foreground">
+                        {displayName}
+                    </h4>
+                    <span className={`text-sm font-black whitespace-nowrap ${isOutOfStock ? 'text-muted-foreground line-through decoration-2' : 'text-[#E86C44]'}`}>
+                        {formatPrice(displayPrice, displayCurrency)}
+                    </span>
+                </div>
+
+                {displayDesc && (
+                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                        {displayDesc}
+                    </p>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-stretch gap-1.5 h-9 pt-1">
+                    <button
+                        onClick={handleAddToCart}
+                        disabled={isOutOfStock}
+                        className={`text-white px-3 rounded-lg flex items-center justify-center active:scale-95 transition-all shadow-sm ${
+                            isOutOfStock
+                                ? 'bg-muted-foreground cursor-not-allowed opacity-50'
+                                : 'bg-[#E86C44] hover:bg-[#d6623e]'
+                        }`}
+                        title={isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                    >
+                        {isOutOfStock
+                            ? <span className="text-[8px] font-bold uppercase whitespace-nowrap">Sold</span>
+                            : <i className="fas fa-shopping-cart text-xs" />
+                        }
+                    </button>
+                    <button
+                        onClick={handleLike}
+                        className={`flex-1 bg-background border border-border/40 rounded-lg flex items-center justify-center gap-1 hover:bg-muted/50 active:scale-95 transition-all ${isLiked ? 'bg-red-50/50' : ''}`}
+                        title="Like"
+                    >
+                        <i className={`${isLiked ? 'fas text-red-500' : 'far text-[#E86C44]'} fa-heart text-xs transition-transform ${isLiked ? 'scale-110' : ''}`} />
+                        {likes > 0 && <span className={`text-[9px] font-black ${isLiked ? 'text-red-500' : 'text-foreground'}`}>{likes}</span>}
+                    </button>
+                    <button
+                        onClick={handleBookmark}
+                        className="w-9 bg-background border border-border/40 rounded-lg flex items-center justify-center hover:bg-muted/50 active:scale-95 transition-all"
+                        title="Bookmark"
+                    >
+                        <i className={`${isBookmarked ? 'fas' : 'far'} fa-bookmark text-[#E86C44] text-xs`} />
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
@@ -284,7 +494,7 @@ const ChatList: React.FC<{
                                             {isGroup && conv.messages.length > 0 && !conv.messages[conv.messages.length - 1].isMe ?
                                                 <span className="font-semibold text-foreground mr-1">{conv.messages[conv.messages.length - 1].senderName}:</span>
                                                 : null}
-                                            {conv.lastMessage}
+                                            {conv.lastMessage?.startsWith('__PRODUCT_CARD__') ? '📦 Shared a product' : conv.lastMessage}
                                         </p>
                                         {conv.unreadCount && conv.unreadCount > 0 ? (
                                             <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">{conv.unreadCount}</span>
@@ -318,7 +528,9 @@ const ChatDetail: React.FC<{
     onMarkAsRead?: (conversationId: string) => void;
     onForward?: (msg: Message) => void;
     onInternalLink?: (path: string) => void;
-}> = ({ chat, onBack, onSendMessage, onOpenGroupInfo, onReact, onNewMessageReceived, currentUser, onUserClick, onMarkAsRead, onForward, onInternalLink }) => {
+    onProductClick?: (product: Product) => void;
+    onAddToCart?: (product: Product) => void;
+}> = ({ chat, onBack, onSendMessage, onOpenGroupInfo, onReact, onNewMessageReceived, currentUser, onUserClick, onMarkAsRead, onForward, onInternalLink, onProductClick, onAddToCart }) => {
     const [newMessage, setNewMessage] = useState('');
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -532,7 +744,7 @@ const ChatDetail: React.FC<{
                                     >{msg.senderName}</span>
                                 )}
 
-                                <div className={`max-w-[75%] relative ${msg.isMe ? 'flex flex-row-reverse' : 'flex flex-row'} items-end gap-2`}>
+                                <div className={`max-w-[85%] relative ${msg.isMe ? 'flex flex-row-reverse' : 'flex flex-row'} items-end gap-2`}>
                                     {chat.isGroup && !msg.isMe && (
                                         <img
                                             src={msg.senderAvatar}
@@ -542,10 +754,14 @@ const ChatDetail: React.FC<{
                                     )}
 
                                     <div
-                                        className={`relative px-5 py-3 rounded-2xl shadow-sm border text-sm leading-relaxed transition-all ${msg.isMe
-                                            ? 'bg-primary border-transparent text-primary-foreground rounded-tr-sm'
-                                            : 'bg-zinc-100 dark:bg-zinc-800 border-border text-foreground rounded-tl-sm'
-                                            } ${msg.isDeleted ? 'italic' : ''}`}
+                                        className={`relative rounded-2xl shadow-sm border text-sm leading-relaxed transition-all ${
+                                            parseSharedProduct(msg.content)
+                                                ? `p-1 ${msg.isMe ? 'bg-primary/10 border-primary/20 rounded-tr-sm' : 'bg-zinc-50 dark:bg-zinc-800/50 border-border/50 rounded-tl-sm'}`
+                                                : `px-5 py-3 ${msg.isMe
+                                                    ? 'bg-primary border-transparent text-primary-foreground rounded-tr-sm'
+                                                    : 'bg-zinc-100 dark:bg-zinc-800 border-border text-foreground rounded-tl-sm'
+                                                }`
+                                        } ${msg.isDeleted ? 'italic' : ''}`}
                                         onDoubleClick={() => !msg.isDeleted && setActiveReactionId(msg.id)}
                                     >
                                         {/* Reply Quote Block */}
@@ -589,9 +805,21 @@ const ChatDetail: React.FC<{
                                                     <button onClick={() => { if (editContent.trim()) api.editMessage(msg.id, editContent); setEditingMessageId(null); }} className="bg-white/20 px-3 py-1 rounded font-bold text-white hover:bg-white/30 transition-colors">Save</button>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            msg.content && <CollapsibleMessageText content={msg.content} isDeleted={msg.isDeleted} onInternalLink={onInternalLink} isMe={msg.isMe} />
-                                        )}
+                                        ) : (() => {
+                                            const sharedProduct = parseSharedProduct(msg.content);
+                                            if (sharedProduct) {
+                                                return (
+                                                    <SharedProductCard
+                                                        product={sharedProduct}
+                                                        isMe={msg.isMe}
+                                                        currentUser={currentUser}
+                                                        onProductClick={onProductClick}
+                                                        onAddToCart={onAddToCart}
+                                                    />
+                                                );
+                                            }
+                                            return msg.content ? <CollapsibleMessageText content={msg.content} isDeleted={msg.isDeleted} onInternalLink={onInternalLink} isMe={msg.isMe} /> : null;
+                                        })()}
                                         <span className={`text-[10px] block text-right mt-1.5 opacity-70 flex items-center justify-end gap-1 ${msg.isMe ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
                                             {msg.isEdited && !msg.isDeleted && <i className="fas fa-pen text-[8px] opacity-70" title="Edited"></i>}
                                             {msg.starredBy?.includes(currentUser.id) && !msg.isDeleted && <i className="fas fa-star text-yellow-400" title="Starred"></i>}
@@ -1201,7 +1429,11 @@ const ForwardMessageModal: React.FC<{
 
                 <div className="p-3 bg-muted rounded-lg border border-border text-sm mb-4 truncate text-muted-foreground italic flex flex-col gap-2">
                     {message.image && <img src={message.image} className="w-16 h-16 object-cover rounded-md" />}
-                    {message.content || 'Photo'}
+                    {(() => {
+                        const sp = parseSharedProduct(message.content);
+                        if (sp) return <span className="flex items-center gap-2 not-italic"><i className="fas fa-shopping-bag text-[#E86C44]" /> <span className="font-bold text-foreground">{sp.name}</span></span>;
+                        return message.content || 'Photo';
+                    })()}
                 </div>
 
                 <p className="text-xs text-muted-foreground font-bold mb-2 uppercase tracking-wider">Recent Chats</p>
@@ -1226,7 +1458,7 @@ const ForwardMessageModal: React.FC<{
 
 // --- Main Component ---
 
-const Messages: React.FC<MessagesProps> = ({ conversations: initialConversations, onSendMessage, currentUser, onUserClick, onMarkAsRead, onForward, onInternalLink }) => {
+const Messages: React.FC<MessagesProps> = ({ conversations: initialConversations, onSendMessage, currentUser, onUserClick, onMarkAsRead, onForward, onInternalLink, onProductClick, onAddToCart }) => {
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [conversations, setConversations] = useState(initialConversations);
     const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
@@ -1596,6 +1828,8 @@ const Messages: React.FC<MessagesProps> = ({ conversations: initialConversations
                     onMarkAsRead={onMarkAsRead}
                     onForward={onForward ? onForward : setForwardMessage}
                     onInternalLink={onInternalLink}
+                    onProductClick={onProductClick}
+                    onAddToCart={onAddToCart}
                 />
             ) : (
                 <ChatList

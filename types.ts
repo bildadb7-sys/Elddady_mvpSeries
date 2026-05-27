@@ -127,6 +127,16 @@ export interface MessageReply {
   image?: string;
 }
 
+export interface SharedProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  image: string;
+  productUrl: string;
+}
+
 export interface Message {
   id: string;
   senderId: string;
@@ -144,6 +154,7 @@ export interface Message {
   isDeleted?: boolean;
   starredBy?: string[];
   status?: 'sent' | 'delivered' | 'read';
+  sharedProduct?: SharedProduct; // Embedded product card data
 }
 
 export interface Conversation {

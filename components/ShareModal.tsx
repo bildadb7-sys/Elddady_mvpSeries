@@ -15,9 +15,14 @@ interface ShareModalProps {
   productName: string;
   productUrl: string;
   title?: string;
+  productId?: string;
+  productImage?: string;
+  productDescription?: string;
+  productPrice?: number;
+  productCurrency?: string;
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, productName, productUrl, title }) => {
+const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, productName, productUrl, title, productId, productImage, productDescription, productPrice, productCurrency }) => {
   const [copied, setCopied] = useState(false);
   const [showMsgPicker, setShowMsgPicker] = useState(false);
   const [conversations, setConversations] = useState<ConvPreview[]>([]);
@@ -74,7 +79,24 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, productName, p
     setSending(convId);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSending(null); return; }
-    const shareMessage = `📦 Check out "${productName}" on Elddady!\n🔗 ${productUrl}`;
+
+    // Build rich product card payload if full product data is available
+    let shareMessage: string;
+    if (productId && productImage && productPrice !== undefined && productCurrency) {
+      const payload = {
+        id: productId,
+        name: productName,
+        description: productDescription || '',
+        price: productPrice,
+        currency: productCurrency,
+        image: productImage,
+        productUrl: productUrl
+      };
+      shareMessage = `__PRODUCT_CARD__${JSON.stringify(payload)}`;
+    } else {
+      shareMessage = `📦 Check out "${productName}" on Elddady!\n🔗 ${productUrl}`;
+    }
+
     await supabase.from('messages').insert({
       conversation_id: convId,
       sender_id: user.id,
