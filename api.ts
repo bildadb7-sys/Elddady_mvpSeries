@@ -1,6 +1,7 @@
 
 import { supabase } from './supabaseClient';
 import { User, Product, Vroom, Post, Conversation, Message, Order, DetailedDispute, PostReport, SearchResults, CartItem, Comment, Reaction } from './types';
+import { APP_URL } from './constants';
 
 // --- HELPERS ---
 
@@ -100,7 +101,7 @@ export const api = {
         // emailRedirectTo: after email confirmation, Supabase redirects here
         // with the session in the URL fragment. App.tsx's onAuthStateChange
         // picks it up via the SIGNED_IN / USER_UPDATED event automatically.
-        const emailRedirectTo = `${window.location.origin}`;
+        const emailRedirectTo = APP_URL;
 
         const { data, error } = await supabase.auth.signUp({
             email: formData.email,
@@ -202,7 +203,7 @@ export const api = {
         // calls handleAuthSession → if no profile found the user is signed out
         // and shown the 'Account Not Found' screen (belt-and-suspenders fallback
         // on top of the before_user_created DB hook which blocks it server-side).
-        const redirectTo = `${window.location.origin}`;
+        const redirectTo = APP_URL;
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {

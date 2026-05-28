@@ -80,19 +80,61 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, productName, p
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSending(null); return; }
 
-    // Build rich product card payload if full product data is available
+    // Build rich product card payload — always fetch fresh data from DB for full sync
     let shareMessage: string;
-    if (productId && productImage && productPrice !== undefined && productCurrency) {
-      const payload = {
-        id: productId,
-        name: productName,
-        description: productDescription || '',
-        price: productPrice,
-        currency: productCurrency,
-        image: productImage,
-        productUrl: productUrl
-      };
-      shareMessage = `__PRODUCT_CARD__${JSON.stringify(payload)}`;
+    if (productId) {
+      try {
+        const { data: freshProduct, error } = await supabase
+          .from('products')
+          .select('id, name, description, price, currency, image')
+          .eq('id', productId)
+          .single();
+
+        if (!error && freshProduct) {
+          const payload = {
+            id: freshProduct.id,
+            name: freshProduct.name,
+            description: freshProduct.description || '',
+            price: freshProduct.price,
+            currency: freshProduct.currency,
+            image: freshProduct.image,
+            productUrl: productUrl
+          };
+          shareMessage = `__PRODUCT_CARD__${JSON.stringify(payload)}`;
+        } else {
+          // DB fetch failed — fall back to props data if available
+          if (productImage && productPrice !== undefined && productCurrency) {
+            const payload = {
+              id: productId,
+              name: productName,
+              description: productDescription || '',
+              price: productPrice,
+              currency: productCurrency,
+              image: productImage,
+              productUrl: productUrl
+            };
+            shareMessage = `__PRODUCT_CARD__${JSON.stringify(payload)}`;
+          } else {
+            shareMessage = `📦 Check out "${productName}" on Elddady!\n🔗 ${productUrl}`;
+          }
+        }
+      } catch {
+        // Network error — fall back to props
+        if (productImage && productPrice !== undefined && productCurrency) {
+          const payload = {
+            id: productId,
+            name: productName,
+            description: productDescription || '',
+            price: productPrice,
+            currency: productCurrency,
+            image: productImage,
+            productUrl: productUrl
+          };
+          shareMessage = `__PRODUCT_CARD__${JSON.stringify(payload)}`;
+        } else {
+          shareMessage = `📦 Check out "${productName}" on Elddady!\n🔗 ${productUrl}`;
+        }
+      }
     } else {
       shareMessage = `📦 Check out "${productName}" on Elddady!\n🔗 ${productUrl}`;
     }

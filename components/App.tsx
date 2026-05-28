@@ -21,7 +21,7 @@ import TermsAndConditionsPage from './TermsAndConditionsPage';
 import { CheckoutModal, PostModal, ForwardMessageModal } from './Modals';
 import { Page, Product, CartItem, Post, Vroom as VroomType, User, Conversation } from '../types';
 import { api } from '../api';
-import { EMPTY_USER } from '../constants';
+import { EMPTY_USER, APP_URL } from '../constants';
 import { supabase } from '../supabaseClient';
 import { CurrencyProvider } from '../context/CurrencyContext';
 import { NotificationProvider } from '../context/NotificationContext';
@@ -392,7 +392,7 @@ const App: React.FC = () => {
       <ResetPasswordModal isOpen={showResetPasswordModal} onClose={() => setShowResetPasswordModal(false)} />
       <PostModal isOpen={isPostModalOpen} onClose={() => setIsPostModalOpen(false)} onSubmit={async (data) => { await api.postProduct(data); loadData(); }} />
       {activeProduct && <ProductDetailModal isOpen={true} onClose={() => setActiveProduct(null)} product={activeProduct} currentUser={currentUser} onAddToCart={(p) => { handleAddToCart(p); setIsCartOpen(true); }} onShare={(p) => { setShareProduct(p); setIsShareModalOpen(true); }} onUserClick={handleViewUser} />}
-      {shareProduct && <ShareModal isOpen={isShareModalOpen} onClose={() => { setIsShareModalOpen(false); setShareProduct(null); }} productName={shareProduct.name} productUrl={`${window.location.origin}/#/product/${shareProduct.id}`} title="Share Product" productId={shareProduct.id} productImage={shareProduct.image} productDescription={shareProduct.description} productPrice={shareProduct.price} productCurrency={shareProduct.currency} />}
+      {shareProduct && <ShareModal isOpen={isShareModalOpen} onClose={() => { setIsShareModalOpen(false); setShareProduct(null); }} productName={shareProduct.name} productUrl={`${APP_URL}/product/${shareProduct.id}`} title="Share Product" productId={shareProduct.id} productImage={shareProduct.image} productDescription={shareProduct.description} productPrice={shareProduct.price} productCurrency={shareProduct.currency} />}
 
       <ForwardMessageModal isOpen={isForwardModalOpen} onClose={() => { setIsForwardModalOpen(false); setMessageToForward(null); }} message={messageToForward} conversations={conversations} onForward={handleForwardMessage} />
 

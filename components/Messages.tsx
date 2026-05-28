@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Conversation, Message, User, Reaction, SharedProduct, Product } from '../types';
 import { api } from '../api';
+import { APP_URL } from '../constants';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 
@@ -55,6 +56,12 @@ const formatLastActive = (dateStr?: string) => {
 
 // Detects URLs in text and renders them as clickable links.
 // Internal product/vroom URLs navigate within the app via onInternalLink.
+// Recognises both the current origin and the canonical elddady.com domain.
+const ELDDADY_HOSTS = ['elddady.com', 'www.elddady.com'];
+const isElddadyOrigin = (url: URL) => {
+    return url.origin === window.location.origin || ELDDADY_HOSTS.some(h => url.hostname === h);
+};
+
 const renderMessageContent = (text: string, onInternalLink?: (path: string) => void) => {
     const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
     const parts = text.split(URL_REGEX);
@@ -65,11 +72,12 @@ const renderMessageContent = (text: string, onInternalLink?: (path: string) => v
         try {
             const href = part.startsWith('http') ? part : `https://${part}`;
             const url = new URL(href);
+            // Match clean path: /product/id or /vroom/id
             const internalPathMatch = url.pathname.match(/\/(product|vroom)\/([^/?#]+)/);
-            // Also handle hash-style: /#/product/id
+            // Also handle legacy hash-style: /#/product/id
             const hashMatch = (url.hash || '').match(/\/(product|vroom)\/([^/?#]+)/);
             const match = internalPathMatch || hashMatch;
-            const isSameOrigin = url.origin === window.location.origin || part.includes('/product/') || part.includes('/vroom/');
+            const isSameOrigin = isElddadyOrigin(url);
 
             if (isSameOrigin && match && onInternalLink) {
                 const path = `/${match[1]}/${match[2]}`;
@@ -365,6 +373,56 @@ const ChatList: React.FC<{
 }> = ({ conversations, onSelectChat, onCreateGroup, onJoinGroup, currentUser, onUserClick }) => {
 
     const [filter, setFilter] = useState<'all' | 'groups' | 'starred'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dbUsers, setDbUsers] = useState<User[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Debounced DB search — fires 300ms after user stops typing
+    const searchUsersFromDb = useCallback(async (query: string) => {
+        if (!query || query.trim().length < 2) {
+            setDbUsers([]);
+            setIsSearching(false);
+            return;
+        }
+        setIsSearching(true);
+        try {
+            const q = query.trim();
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id, name, handle, avatar')
+                .or(`name.ilike.%${q}%,handle.ilike.%${q}%`)
+                .neq('id', currentUser.id)
+                .limit(15);
+            if (!error && data) {
+                setDbUsers(data.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    handle: p.handle,
+                    avatar: p.avatar,
+                    isOnline: false
+                })));
+            }
+        } catch (e) {
+            console.error('User search failed:', e);
+        } finally {
+            setIsSearching(false);
+        }
+    }, [currentUser.id]);
+
+    useEffect(() => {
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        if (!searchQuery.trim()) {
+            setDbUsers([]);
+            return;
+        }
+        searchTimerRef.current = setTimeout(() => {
+            searchUsersFromDb(searchQuery);
+        }, 300);
+        return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+    }, [searchQuery, searchUsersFromDb]);
+
+    const queryLower = searchQuery.trim().toLowerCase();
 
     const filteredConversations = conversations.map(c => {
         if (filter === 'starred') {
@@ -375,10 +433,37 @@ const ChatList: React.FC<{
         return c;
     }).filter(Boolean) as Conversation[];
 
-    const displayConvs = filteredConversations.filter(c => {
+    let displayConvs = filteredConversations.filter(c => {
         if (filter === 'groups') return c.isGroup;
         return true;
     });
+
+    // Local conversation search filter
+    if (queryLower) {
+        displayConvs = displayConvs.filter(c => {
+            if (c.isGroup) {
+                return c.groupName?.toLowerCase().includes(queryLower);
+            }
+            const userName = c.user?.name?.toLowerCase() || '';
+            const userHandle = (c.user?.handle || '').toLowerCase();
+            return userName.includes(queryLower) || userHandle.includes(queryLower);
+        });
+    }
+
+    // DB users that are NOT already in displayed conversations
+    const existingUserIds = new Set(conversations.filter(c => !c.isGroup && c.user).map(c => c.user!.id));
+    const newDbUsers = dbUsers.filter(u => !existingUserIds.has(u.id));
+
+    const handleStartDm = async (userId: string) => {
+        try {
+            const conv = await api.startDirectMessage(userId);
+            if (conv && conv.id) {
+                onSelectChat(conv.id);
+            }
+        } catch (e) {
+            console.error('Failed to start DM:', e);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-background relative">
@@ -432,15 +517,27 @@ const ChatList: React.FC<{
                 <div className="relative">
                     <input
                         type="text"
-                        placeholder="Search"
+                        placeholder="Search users by name or @handle..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full bg-muted/50 text-foreground placeholder:text-muted-foreground px-5 py-3 rounded-2xl border-none focus:ring-1 focus:ring-primary/50 outline-none"
                     />
-                    <i className="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"></i>
+                    {searchQuery ? (
+                        <button
+                            onClick={() => { setSearchQuery(''); setDbUsers([]); }}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            <i className="fas fa-times"></i>
+                        </button>
+                    ) : (
+                        <i className="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"></i>
+                    )}
                 </div>
             </div>
 
             {/* List */}
             <div className="flex-1 overflow-y-auto px-2 space-y-1 pb-4">
+                {/* Conversation results */}
                 {displayConvs
                     .slice()
                     .sort((a, b) => (b.lastMessageTimestamp || 0) - (a.lastMessageTimestamp || 0))
@@ -506,7 +603,51 @@ const ChatList: React.FC<{
                             </div>
                         )
                     })}
-                {filteredConversations.length === 0 && (
+
+                {/* DB search results — users not in existing conversations */}
+                {queryLower && newDbUsers.length > 0 && (
+                    <>
+                        <div className="px-3 pt-4 pb-1">
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">People on Elddady</p>
+                        </div>
+                        {newDbUsers.map(user => (
+                            <div
+                                key={user.id}
+                                onClick={() => handleStartDm(user.id)}
+                                className="flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/30 cursor-pointer transition-colors"
+                            >
+                                <div className="relative">
+                                    <img src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=E86C44&color=fff`} alt={user.name} className="w-14 h-14 rounded-full object-cover border-2 border-background shadow-sm" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-base text-foreground truncate">{user.name}</h3>
+                                    <p className="text-sm text-muted-foreground truncate">{user.handle}</p>
+                                </div>
+                                <div className="text-[10px] text-primary font-bold uppercase tracking-widest flex items-center gap-1">
+                                    <i className="fas fa-paper-plane text-[9px]"></i> Message
+                                </div>
+                            </div>
+                        ))}
+                    </>
+                )}
+
+                {/* Loading indicator */}
+                {isSearching && (
+                    <div className="flex justify-center py-4">
+                        <i className="fas fa-circle-notch fa-spin text-primary"></i>
+                    </div>
+                )}
+
+                {/* No results state */}
+                {queryLower && displayConvs.length === 0 && newDbUsers.length === 0 && !isSearching && (
+                    <div className="text-center py-10 text-muted-foreground">
+                        <i className="fas fa-search text-2xl mb-3 opacity-40"></i>
+                        <p className="font-bold text-sm">No users found for "{searchQuery}"</p>
+                        <p className="text-xs mt-1">Try a different name or @handle</p>
+                    </div>
+                )}
+
+                {!queryLower && filteredConversations.length === 0 && (
                     <div className="text-center py-10 text-muted-foreground">
                         <p>No {filter === 'groups' ? 'groups' : 'chats'} found.</p>
                     </div>
@@ -1279,7 +1420,7 @@ const GroupInfoModal: React.FC<{
                         <div>
                             <button
                                 onClick={() => {
-                                    const link = `${window.location.origin}${window.location.pathname}?group=${group.id}`;
+                                    const link = `${APP_URL}/messages?group=${group.id}`;
                                     navigator.clipboard.writeText(link).then(() => alert('Invite link copied!')).catch(() => prompt('Copy this link:', link));
                                 }}
                                 className="flex items-center gap-2 text-xs text-primary font-bold hover:underline"

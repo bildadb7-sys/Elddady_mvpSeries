@@ -3,6 +3,7 @@ import { User } from './types';
 
 // System-wide production constants
 export const APP_NAME = 'Elddady';
+export const APP_URL = 'https://www.elddady.com';
 
 // Default Empty User Object for initialization
 export const EMPTY_USER: User = {

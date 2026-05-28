@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Vroom as VroomType, Product } from '../types';
 import { CURRENT_USER } from '../constants';
+import { APP_URL } from '../constants';
 import { api } from '../api';
 import { supabase } from '../supabaseClient';
 
@@ -129,7 +130,7 @@ const Vroom: React.FC<VroomProps> = ({ vroom, onAddToCart, onProductClick, onSha
     };
 
     const handleShareVroom = () => {
-        const url = `${window.location.origin}/#/vroom/${currentVroom.id}`;
+        const url = `${APP_URL}/vroom/${currentVroom.id}`;
         navigator.clipboard.writeText(url);
         alert(currentVroom.isPublic ? "Vroom link copied!" : "Private link copied! Only people with this link can view this Vroom.");
     }

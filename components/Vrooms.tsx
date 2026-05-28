@@ -4,6 +4,7 @@ import { Vroom as VroomType, Product, User } from '../types';
 import { api } from '../api';
 import { supabase } from '../supabaseClient';
 import ShareModal from './ShareModal';
+import { APP_URL } from '../constants';
 
 interface VroomsProps {
     initialVroomData?: VroomType;
@@ -537,7 +538,7 @@ const Vrooms: React.FC<VroomsProps> = ({ initialVroomData, onAddToCart, onProduc
                     isOpen={isShareModalOpen}
                     onClose={() => setIsShareModalOpen(false)}
                     productName={selectedVroom.name}
-                    productUrl={`${window.location.origin}/#/vroom/${selectedVroom.id}`}
+                    productUrl={`${APP_URL}/vroom/${selectedVroom.id}`}
                     title="Share Vroom"
                 />
 
