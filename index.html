@@ -188,6 +188,22 @@
         .pb-safe {
             padding-bottom: env(safe-area-inset-bottom);
         }
+
+        /* Typing Wave Animation — 4 dots ripple up/down in sequence */
+        @keyframes typing-wave {
+            0%, 100% { transform: translateY(0); opacity: 0.3; }
+            50% { transform: translateY(-6px); opacity: 1; }
+        }
+        .typing-wave-dot {
+            animation: typing-wave 1.4s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        /* Typing indicator entrance */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
     </style>
     <script type="importmap">
 {

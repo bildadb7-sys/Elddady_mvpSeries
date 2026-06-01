@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { AppNotification, User } from '../types';
 import NotificationToast from '../components/NotificationToast';
@@ -29,6 +29,84 @@ export const NotificationProvider: React.FC<{ children: ReactNode; currentUser: 
     }
   }, [currentUser]);
 
+  // --- Notification Sound Preloading & Audio Unlock ---
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    // Preload the notification sound for instant playback
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audio.volume = 0.5;
+    audio.preload = 'auto';
+    audioRef.current = audio;
+
+    // Browsers require a user gesture before playing audio.
+    // Unlock both HTMLAudioElement and AudioContext on first interaction.
+    const unlockAudio = () => {
+      if (audioRef.current) {
+        audioRef.current.play().then(() => {
+          audioRef.current!.pause();
+          audioRef.current!.currentTime = 0;
+        }).catch(() => {});
+      }
+      try {
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        audioCtxRef.current.resume();
+      } catch {}
+    };
+
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('keydown', unlockAudio, { once: true });
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('keydown', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
+  // Web Audio API fallback: synthesises a pleasant two-tone notification chime
+  const playWebAudioChime = useCallback(() => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      ctx.resume();
+      const now = ctx.currentTime;
+
+      // Tone 1: D5 (587 Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.frequency.value = 587.33;
+      osc1.type = 'sine';
+      gain1.gain.setValueAtTime(0.35, now);
+      gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc1.start(now);
+      osc1.stop(now + 0.25);
+
+      // Tone 2: A5 (880 Hz) — offset for a pleasing chime
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.frequency.value = 880;
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0.01, now + 0.12);
+      gain2.gain.linearRampToValueAtTime(0.3, now + 0.18);
+      gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+      osc2.start(now + 0.12);
+      osc2.stop(now + 0.45);
+    } catch (e) {
+      console.warn('Web Audio chime failed:', e);
+    }
+  }, []);
+
   const requestPermission = async () => {
     if ('Notification' in window) {
       const perm = await Notification.requestPermission();
@@ -45,17 +123,23 @@ export const NotificationProvider: React.FC<{ children: ReactNode; currentUser: 
 
     setNotifications(prev => [newNotif, ...prev]);
 
-    // 1. Always attempt to play a pleasant Notification tone
+    // 1. Play notification sound (preloaded audio with Web Audio fallback)
     try {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-        audio.volume = 0.4; // Slightly louder to ensure it catches attention
-        const playPromise = audio.play();
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
-            playPromise.catch(() => {
-                console.warn('Autoplay blocked for notification tone. We need a user interaction first.');
-            });
+          playPromise.catch(() => {
+            // Browser blocked preloaded audio — fall back to Web Audio API chime
+            playWebAudioChime();
+          });
         }
-    } catch(e) {}
+      } else {
+        playWebAudioChime();
+      }
+    } catch (e) {
+      playWebAudioChime();
+    }
 
     // 2. Native Browser Notification (OS Popup)
     // Only pop the OS notification if the user has navigated away from our active tab
@@ -74,11 +158,11 @@ export const NotificationProvider: React.FC<{ children: ReactNode; currentUser: 
         console.warn('Native notification failed', e);
       }
     }
-  }, [permission, onNavigate]);
+  }, [permission, onNavigate, playWebAudioChime]);
 
-  const removeNotification = (id: string) => {
+  const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
-  };
+  }, []);
 
   // --- Realtime Subscriptions ---
   useEffect(() => {

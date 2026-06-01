@@ -683,7 +683,7 @@ const ChatDetail: React.FC<{
     // Tagging / Mention State
     const [showMentions, setShowMentions] = useState(false);
     const [mentionQuery, setMentionQuery] = useState('');
-    const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+    const [typingUsers, setTypingUsers] = useState<Map<string, { name: string; handle: string }>>(new Map());
 
     // Edit Message State
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -706,16 +706,16 @@ const ChatDetail: React.FC<{
         if (isTyping) {
             if (!isTypingRef.current) {
                 isTypingRef.current = true;
-                presenceChannelRef.current?.track({ user_id: currentUser.id, name: currentUser.name, typing: true });
+                presenceChannelRef.current?.track({ user_id: currentUser.id, name: currentUser.name, handle: currentUser.handle, typing: true });
             }
             typingTimeoutRef.current = setTimeout(() => {
                 isTypingRef.current = false;
-                presenceChannelRef.current?.track({ user_id: currentUser.id, name: currentUser.name, typing: false });
+                presenceChannelRef.current?.track({ user_id: currentUser.id, name: currentUser.name, handle: currentUser.handle, typing: false });
             }, 3000);
         } else {
             if (isTypingRef.current) {
                 isTypingRef.current = false;
-                presenceChannelRef.current?.track({ user_id: currentUser.id, name: currentUser.name, typing: false });
+                presenceChannelRef.current?.track({ user_id: currentUser.id, name: currentUser.name, handle: currentUser.handle, typing: false });
             }
         }
     };
@@ -756,12 +756,12 @@ const ChatDetail: React.FC<{
         presenceChannel
             .on('presence', { event: 'sync' }, () => {
                 const state = presenceChannel.presenceState();
-                const newTyping = new Set<string>();
+                const newTyping = new Map<string, { name: string; handle: string }>();
                 for (const key in state) {
                     const users = state[key] as any[];
                     for (const u of users) {
                         if (u.typing && u.user_id !== currentUser.id) {
-                            newTyping.add(u.name || 'Someone');
+                            newTyping.set(u.user_id, { name: u.name || 'Someone', handle: u.handle || '' });
                         }
                     }
                 }
@@ -769,7 +769,7 @@ const ChatDetail: React.FC<{
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    await presenceChannel.track({ user_id: currentUser.id, name: currentUser.name, typing: false });
+                    await presenceChannel.track({ user_id: currentUser.id, name: currentUser.name, handle: currentUser.handle, typing: false });
                 }
             });
 
@@ -1105,13 +1105,22 @@ const ChatDetail: React.FC<{
 
                         {/* Typing Indicator UI */}
                         {typingUsers.size > 0 && (
-                            <div className="absolute -top-6 left-2 text-xs text-muted-foreground font-semibold flex items-center gap-1 z-10 bg-background/50 rounded-full px-2 py-0.5 pointer-events-none">
-                                <span className="flex gap-0.5 mt-1 mr-1">
-                                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce"></span>
-                                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                            <div className="absolute -top-9 left-2 text-xs font-semibold flex items-center gap-1.5 z-10 bg-background/90 backdrop-blur-sm rounded-full px-3 py-1.5 pointer-events-none shadow-sm border border-border/40" style={{ animation: 'fadeSlideUp 0.25s ease-out' }}>
+                                <span className="text-foreground/80 flex items-center flex-wrap">
+                                    {Array.from(typingUsers.values()).map((u, i, arr) => (
+                                        <span key={i}>
+                                            <span className="text-primary font-bold">@{u.handle || u.name}</span>
+                                            {arr.length > 1 && i < arr.length - 1 ? <span className="text-muted-foreground">,&nbsp;</span> : null}
+                                        </span>
+                                    ))}
+                                    <span className="ml-1 text-muted-foreground">{typingUsers.size === 1 ? 'is typing' : 'are typing'}</span>
                                 </span>
-                                {Array.from(typingUsers).join(', ')} typing...
+                                <span className="flex gap-[3px] ml-0.5 items-center">
+                                    <span className="w-[5px] h-[5px] bg-primary rounded-full typing-wave-dot" style={{ animationDelay: '0s' }}></span>
+                                    <span className="w-[5px] h-[5px] bg-primary rounded-full typing-wave-dot" style={{ animationDelay: '0.15s' }}></span>
+                                    <span className="w-[5px] h-[5px] bg-primary rounded-full typing-wave-dot" style={{ animationDelay: '0.3s' }}></span>
+                                    <span className="w-[5px] h-[5px] bg-primary rounded-full typing-wave-dot" style={{ animationDelay: '0.45s' }}></span>
+                                </span>
                             </div>
                         )}
 
