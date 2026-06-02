@@ -95,7 +95,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onSwitchToLogi
 
                 {/* Left Side - Branding */}
                 <div className="hidden md:flex flex-col items-center justify-center text-center space-y-6">
-                    <img src="/ELDDADY2_transprnt_Y2.svg" alt="Elddady Logo" className="w-48 lg:w-64 h-auto object-contain drop-shadow-xl" />
+                    <img src="/ELDDADY2_transprnt_Y2.svg" alt="Elddady Logo" className="w-64 lg:w-80 h-auto object-contain drop-shadow-xl" />
                     <div className="space-y-2">
                         <p className="text-muted-foreground text-xl tracking-wide">Excelio in it</p>
                     </div>

@@ -90,7 +90,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp, isGoogleBl
             <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
                 <div className="max-w-md w-full">
                     <div className="text-center mb-8 flex justify-center">
-                        <img src="/ELDDADY2_transprnt_Y2.svg" alt="Elddady Logo" className="h-20 w-auto object-contain drop-shadow-lg mb-2" />
+                        <img src="/ELDDADY2_transprnt_Y2.svg" alt="Elddady Logo" className="h-28 w-auto object-contain drop-shadow-lg mb-2" />
                     </div>
                     <div className="bg-card rounded-lg p-8 shadow-lg border border-border text-center space-y-5 animate-in slide-in-from-bottom-5 duration-500">
                         <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto">
@@ -150,7 +150,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignUp, isGoogleBl
             <div className="max-w-md w-full">
                 {/* Logo and Title */}
                 <div className="text-center mb-8 flex flex-col items-center">
-                    <img src="/ELDDADY2_transprnt_Y2.svg" alt="Elddady Logo" className="h-24 w-auto object-contain drop-shadow-lg mb-4" />
+                    <img src="/ELDDADY2_transprnt_Y2.svg" alt="Elddady Logo" className="h-32 w-auto object-contain drop-shadow-lg mb-4" />
                     <p className="text-muted-foreground text-lg">Excellio in it</p>
                 </div>
 
