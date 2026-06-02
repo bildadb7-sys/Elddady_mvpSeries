@@ -34,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, cartItemCount, onNavigate,
         onClick={handleLogoClick}
         title="Home"
       >
-        <img src="/logo.png" alt="Elddady" className="h-8 w-auto object-contain drop-shadow-sm" />
+        <img src="/ELD_orng_nobg.png" alt="Elddady" className="h-8 w-auto object-contain drop-shadow-sm" />
       </Link>
 
       {/* Item 2: Search Bar (Middle - flex-1 forces it to expand) */}
