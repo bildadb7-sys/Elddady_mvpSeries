@@ -15,7 +15,11 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs1" />
+     id="defs1">
+    <clipPath id="circleClip">
+      <circle cx="250" cy="250" r="150" />
+    </clipPath>
+  </defs>
   <sodipodi:namedview
      id="namedview1"
      pagecolor="#ffffff"
@@ -37,7 +41,8 @@
   <g
      inkscape:groupmode="layer"
      inkscape:label="Image"
-     id="g1">
+     id="g1"
+     clip-path="url(#circleClip)">
     <image
        width="500"
        height="500"
