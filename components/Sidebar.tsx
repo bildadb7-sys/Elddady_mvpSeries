@@ -36,7 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="h-full flex flex-col p-2 lg:p-4 bg-card transition-all duration-300 w-full overflow-y-auto">
       {/* Logo */}
       <div className="flex items-center justify-center lg:justify-start mb-4 lg:mb-8 h-14 lg:px-2 flex-shrink-0 cursor-pointer" onClick={() => onNavigate(Page.FEED)}>
-        <img src="/ELDDADY2_transprnt_Y2.svg" alt="Elddady" className="h-14 lg:h-16 w-auto object-contain transition-all duration-300 drop-shadow-sm" />
+        <img src="/ELDDADY2_transprnt_Y2.svg" alt="Elddady" className="h-20 lg:h-24 w-auto object-contain transition-all duration-300 drop-shadow-sm" />
       </div>
 
       {/* Navigation & Actions Container */}
