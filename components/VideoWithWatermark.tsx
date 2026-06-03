@@ -19,7 +19,7 @@ export const VideoWithWatermark: React.FC<VideoWithWatermarkProps> = ({
   useEffect(() => {
     if (!handle && userId) {
       // Try to fetch the user's profile to get the handle
-      api.getUserProfile(userId).then(user => {
+      api.getPublicProfile(userId).then(user => {
         if (user && user.handle) {
           setHandle(user.handle);
         }
