@@ -6,7 +6,7 @@
    id="svg1"
    width="100%"
    height="100%"
-   viewBox="120 120 260 260"
+   viewBox="0 0 500 500"
    sodipodi:docname="ELDDADY-web-iconV1.1.svg"
    inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
@@ -17,7 +17,7 @@
   <defs
      id="defs1">
     <clipPath id="circleClip">
-      <circle cx="250" cy="250" r="130" />
+      <circle cx="250" cy="250" r="250" />
     </clipPath>
   </defs>
   <sodipodi:namedview
