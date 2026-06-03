@@ -9,6 +9,7 @@ import { applyWatermark } from '../utils/imageProcessor';
 import { useCurrency } from '../context/useCurrency';
 import PromoteModal from './PromoteModal';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { VideoWithWatermark } from './VideoWithWatermark';
 
 interface ProfileProps {
     user: User;
@@ -116,8 +117,8 @@ const ProductItem: React.FC<{
 
                 {localProduct.video ? (
                     <>
-                        <video src={localProduct.video} className="w-full h-full object-cover opacity-80" muted playsInline />
-                        <div className="absolute inset-0 flex items-center justify-center">
+                        <VideoWithWatermark src={localProduct.video} containerClassName="w-full h-full" className="w-full h-full object-cover opacity-80" muted playsInline userId={localProduct.userId} />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="w-10 h-10 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
                                 <i className="fas fa-play text-white ml-1"></i>
                             </div>

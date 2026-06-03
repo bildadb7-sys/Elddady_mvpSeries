@@ -5,6 +5,8 @@ import { CartItem, DetailedDispute } from '../types';
 import TagManager from './TagManager';
 import { applyWatermark } from '../utils/imageProcessor';
 import { useCurrency } from '../context/useCurrency';
+import { VideoWithWatermark } from './VideoWithWatermark';
+import { CURRENT_USER } from '../constants';
 
 // --- File Dispute Modal ---
 
@@ -861,7 +863,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
               ) : media ? (
                 <div className="w-full h-full relative">
                   {mediaType === 'video' ? (
-                    <video src={media} className="max-h-48 w-full object-contain rounded" controls={false} />
+                    <VideoWithWatermark src={media} className="max-h-48 w-full object-contain rounded" controls={false} userId={CURRENT_USER.id} />
                   ) : (
                     <img src={media} alt="Preview" className="max-h-48 w-full object-contain rounded" />
                   )}

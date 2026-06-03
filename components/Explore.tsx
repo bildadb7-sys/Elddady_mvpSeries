@@ -5,6 +5,7 @@ import { api } from '../api';
 import { supabase } from '../supabaseClient';
 import TrendingList from './TrendingList';
 import { useCurrency } from '../context/useCurrency';
+import { VideoWithWatermark } from './VideoWithWatermark';
 
 interface ExploreProps {
     onAddToCart: (product: Product) => void;
@@ -399,7 +400,7 @@ const Explore: React.FC<ExploreProps> = ({ onAddToCart, onProductClick, onShare,
                                                             </div>
                                                         )}
                                                         {product.video ? (
-                                                            <><video src={product.video} className="w-full h-full object-cover opacity-80" muted playsInline /><div className="absolute inset-0 flex items-center justify-center"><div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm"><i className="fas fa-play text-white text-xs ml-0.5"></i></div></div></>
+                                                            <><VideoWithWatermark src={product.video} containerClassName="w-full h-full" className="w-full h-full object-cover opacity-80" muted playsInline userId={product.userId} /><div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm"><i className="fas fa-play text-white text-xs ml-0.5"></i></div></div></>
                                                         ) : (
                                                             <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                                                         )}

@@ -5,6 +5,7 @@ import { api } from '../api';
 import { useDwellDetection } from '../hooks/useDwellDetection';
 import PopularVroomsList from './PopularVroomsList';
 import { useCurrency } from '../context/useCurrency';
+import { VideoWithWatermark } from './VideoWithWatermark';
 
 interface FeedProps {
     posts: Post[];
@@ -175,7 +176,14 @@ const FeedPost: React.FC<{
                                 )}
 
                                 {product.video ? (
-                                    <video src={product.video} controls playsInline className="w-full max-h-[600px] object-contain" />
+                                    <VideoWithWatermark 
+                                      src={product.video} 
+                                      controls 
+                                      playsInline 
+                                      className="w-full max-h-[600px] object-contain"
+                                      userHandle={post.user.handle}
+                                      userId={product.userId}
+                                    />
                                 ) : (
                                     <img src={product.image} alt={product.name} onClick={handleProductClick} className="w-full object-contain max-h-[600px]" />
                                 )}

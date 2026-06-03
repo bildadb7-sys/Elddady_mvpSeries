@@ -55,7 +55,7 @@ export const applyWatermark = (file: File, userHandle?: string): Promise<Blob> =
       let handleLineHeight = 0;
       if (userHandle) {
         const handle = userHandle.startsWith('@') ? userHandle : `@${userHandle}`;
-        ctx.font = `italic ${handleFontSize}px 'Brush Script MT', 'Segoe Script', 'Apple Chancery', cursive`;
+        ctx.font = `${handleFontSize}px 'Lastica', sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.50)';
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
         ctx.lineWidth = 1;
@@ -66,16 +66,16 @@ export const applyWatermark = (file: File, userHandle?: string): Promise<Blob> =
         handleLineHeight = handleFontSize + Math.floor(handleFontSize * 0.25);
       }
 
-      // 5. Draw "Elddady" brand name (upper line)
-      ctx.font = `bold ${brandFontSize}px 'Brush Script MT', 'Segoe Script', 'Apple Chancery', cursive`;
+      // 5. Draw "ELDDADY" brand name (upper line)
+      ctx.font = `${brandFontSize}px 'HK MODULAR', sans-serif`;
       // Elddady system orange (#E86C44) at 45% opacity
       ctx.fillStyle = 'rgba(232, 108, 68, 0.45)';
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
       ctx.lineWidth = 1;
 
       const brandY = canvas.height - margin - handleLineHeight;
-      ctx.strokeText('Elddady', x, brandY);
-      ctx.fillText('Elddady', x, brandY);
+      ctx.strokeText('ELDDADY', x, brandY);
+      ctx.fillText('ELDDADY', x, brandY);
 
       // 6. Export as high-quality JPEG
       canvas.toBlob(

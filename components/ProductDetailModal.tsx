@@ -4,6 +4,7 @@ import { Product, User, Comment, Reaction } from '../types';
 import { api } from '../api';
 import { CURRENT_USER } from '../constants';
 import { useCurrency } from '../context/useCurrency';
+import { VideoWithWatermark } from './VideoWithWatermark';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -328,7 +329,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </div>
                 )}
                 {localProduct.video ? (
-                    <video src={localProduct.video} controls className="h-full w-full object-contain" />
+                    <VideoWithWatermark src={localProduct.video} controls containerClassName="h-full w-full" className="h-full w-full object-contain" userId={localProduct.userId} />
                 ) : (
                     <img src={localProduct.image} alt={localProduct.name} className="h-full w-full object-contain" />
                 )}
