@@ -34,19 +34,21 @@ export const applyWatermark = (file: File, userHandle?: string): Promise<Blob> =
       ctx.drawImage(img, 0, 0);
 
       // 2. Calculate dynamic sizing based on the shorter dimension
-      //    so watermarks stay visually consistent across portrait/landscape/square images
+      // This ensures consistent visual scale regardless of absolute pixel dimensions
       const shortSide = Math.min(img.width, img.height);
-
-      // Brand font: ~4% of the shorter side (min 20px, max 120px)
-      const brandFontSize = Math.min(120, Math.max(20, Math.floor(shortSide * 0.04)));
-      // Handle font: 60% of brand size
-      const handleFontSize = Math.floor(brandFontSize * 0.6);
-      // Margin: 2.5% of shorter side (min 10px)
-      const margin = Math.max(10, Math.floor(shortSide * 0.025));
+      const brandFontSize = Math.max(24, Math.floor(shortSide * 0.06)); // 6% of shorter side
+      const handleFontSize = Math.max(12, Math.floor(brandFontSize * 0.5)); // 50% of brand size
+      const margin = Math.max(16, Math.floor(shortSide * 0.04)); // 4% margin from edge
 
       // 3. Configure text style
       ctx.textBaseline = 'bottom';
       ctx.textAlign = 'right';
+
+      // Advanced industrial shadow for maximum clarity on any background
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+      ctx.shadowBlur = Math.max(4, Math.floor(brandFontSize * 0.15));
+      ctx.shadowOffsetX = Math.max(2, Math.floor(brandFontSize * 0.05));
+      ctx.shadowOffsetY = Math.max(2, Math.floor(brandFontSize * 0.05));
 
       // Position: bottom-right with proportional margin
       const x = canvas.width - margin;
@@ -55,26 +57,19 @@ export const applyWatermark = (file: File, userHandle?: string): Promise<Blob> =
       let handleLineHeight = 0;
       if (userHandle) {
         const handle = userHandle.startsWith('@') ? userHandle : `@${userHandle}`;
-        ctx.font = `${handleFontSize}px 'Lastica', sans-serif`;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.50)';
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
-        ctx.lineWidth = 1;
-
+        ctx.font = `bold ${handleFontSize}px 'Lastica', sans-serif`;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; // High opacity white
+        
         const handleY = canvas.height - margin;
-        ctx.strokeText(handle, x, handleY);
         ctx.fillText(handle, x, handleY);
-        handleLineHeight = handleFontSize + Math.floor(handleFontSize * 0.25);
+        handleLineHeight = handleFontSize + Math.floor(handleFontSize * 0.5);
       }
 
       // 5. Draw "ELDDADY" brand name (upper line)
-      ctx.font = `${brandFontSize}px 'HK MODULAR', sans-serif`;
-      // Elddady system orange (#E86C44) at 45% opacity
-      ctx.fillStyle = 'rgba(232, 108, 68, 0.45)';
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
-      ctx.lineWidth = 1;
-
+      ctx.font = `bold ${brandFontSize}px 'HK MODULAR', sans-serif`;
+      ctx.fillStyle = 'rgba(232, 108, 68, 0.95)'; // High opacity brand orange (#E86C44)
+      
       const brandY = canvas.height - margin - handleLineHeight;
-      ctx.strokeText('ELDDADY', x, brandY);
       ctx.fillText('ELDDADY', x, brandY);
 
       // 6. Export as high-quality JPEG
