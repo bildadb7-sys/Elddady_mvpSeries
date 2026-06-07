@@ -30,14 +30,14 @@ export const VideoWithWatermark: React.FC<VideoWithWatermarkProps> = ({
   return (
     <div className={`relative flex items-center justify-center overflow-hidden ${containerClassName}`} style={{ containerType: 'inline-size' }}>
       <video {...props} className={className} />
-      <div className="absolute bottom-[4cqi] right-[4cqi] flex flex-col items-end pointer-events-none z-10" style={{ paddingBottom: 'max(16px, 4cqi)', paddingRight: 'max(16px, 4cqi)' }}>
+      <div className="absolute bottom-[1cqi] right-[4cqi] flex flex-col items-end pointer-events-none z-10" style={{ paddingBottom: 'max(8px, 1cqi)', paddingRight: 'max(16px, 4cqi)' }}>
         <span 
           className="font-bold opacity-95" 
           style={{ 
             color: '#E86C44',
             fontFamily: "'HK MODULAR', sans-serif", 
             textShadow: '2px 2px 4px rgba(0,0,0,0.85)',
-            fontSize: 'max(24px, 6cqi)',
+            fontSize: 'max(16px, 4cqi)',
             lineHeight: '1.2'
           }}
         >
@@ -45,11 +45,11 @@ export const VideoWithWatermark: React.FC<VideoWithWatermarkProps> = ({
         </span>
         {handle && (
           <span 
-            className="text-white opacity-90" 
+            className="text-black opacity-90" 
             style={{ 
               fontFamily: "'Lastica', sans-serif", 
-              textShadow: '2px 2px 4px rgba(0,0,0,0.85)',
-              fontSize: 'max(12px, 3cqi)',
+              textShadow: '1px 1px 3px rgba(255,255,255,0.85)',
+              fontSize: 'max(10px, 2.5cqi)',
               lineHeight: '1'
             }}
           >
