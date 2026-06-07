@@ -726,8 +726,16 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
     if (!files || files.length === 0) return;
 
     if (files[0].type.startsWith('image/')) {
-        if (files.length > 3) {
-            alert("You can upload a maximum of 3 images.");
+        // If they had a video before, reset it
+        if (mediaType === 'video') {
+            setMediaList([]);
+            setMedia(null);
+            setMediaType('image');
+        }
+
+        const currentCount = mediaType === 'video' ? 0 : mediaList.length;
+        if (currentCount + files.length > 3) {
+            alert("You can upload a maximum of 3 images total.");
             e.target.value = '';
             return;
         }
@@ -754,20 +762,19 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
                 newMediaList.push(base64);
             }
             
-            // To make sure the user's selected "Main view" is first, we'll keep the list as is,
-            // but the `media` state stores the main one. If we pass `mediaList` sorted or 
-            // pass `media` separately to api.ts, we can ensure `media` is the first element.
-            // Right now, `api.ts` expects `data.mediaList`, we need to make sure the main image 
-            // is at index 0. We will handle that before `onSubmit` or let the user click to select.
             
-            setMediaList(newMediaList);
-            setMedia(newMediaList[0]);
+            setMediaList(prev => {
+                const combined = mediaType === 'video' ? newMediaList : [...prev, ...newMediaList];
+                if (!media) setMedia(combined[0]);
+                return combined;
+            });
             setMediaType('image');
         } catch (err) {
             console.error(err);
             alert("Failed to apply watermark.");
         } finally {
             setIsWatermarking(false);
+            e.target.value = ''; // Reset input
         }
     } else if (files[0].type.startsWith('video/')) {
       const file = files[0];
@@ -786,6 +793,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
         }
       };
       reader.readAsDataURL(file);
+      e.target.value = ''; // Reset input
     }
   };
 
@@ -902,11 +910,25 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
                         {mediaList.map((m, idx) => (
                             <div key={idx} className={`relative cursor-pointer border-4 ${media === m ? 'border-primary' : 'border-transparent'}`} onClick={(e) => { e.stopPropagation(); setMedia(m); }}>
                                 <img src={m} alt={`Preview ${idx}`} className="h-32 w-32 object-cover rounded" />
-                                {media === m && <div className="absolute top-1 left-1 bg-primary text-white text-[10px] px-1 rounded font-bold">MAIN VIEW</div>}
+                                {media === m && <div className="absolute top-1 left-1 bg-primary text-white text-[10px] px-1 rounded font-bold shadow-md">MAIN VIEW</div>}
+                                <button type="button" className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg hover:bg-red-600 z-10" onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    const newList = mediaList.filter((_, i) => i !== idx);
+                                    setMediaList(newList);
+                                    if (media === m) setMedia(newList[0] || null);
+                                }}>
+                                    <i className="fas fa-times text-xs"></i>
+                                </button>
                             </div>
                         ))}
+                        {mediaList.length < 3 && (
+                            <div className="h-32 w-32 border-2 border-dashed border-input rounded flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+                                <i className="fas fa-plus text-2xl text-muted-foreground mb-1"></i>
+                                <span className="text-xs text-muted-foreground font-semibold">Add Image</span>
+                            </div>
+                        )}
                     </div>
-                  <div className="absolute top-0 right-0 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 cursor-pointer" onClick={(e) => { e.stopPropagation(); setMediaList([]); setMedia(null); }}>
+                  <div className="absolute top-0 right-0 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 cursor-pointer hidden" onClick={(e) => { e.stopPropagation(); setMediaList([]); setMedia(null); }}>
                     <i className="fas fa-times"></i>
                   </div>
                 </div>
