@@ -442,7 +442,7 @@ export const api = {
                     id: p.id,
                     user: p.user,
                     product: {
-                        ...p.product,
+                        ...mapProduct(p.product),
                         userId: p.product.owner_id,
                         likes: p.product.likes_count || 0,
                         sharesCount: p.product.shares_count || 0,
@@ -1856,7 +1856,14 @@ export const api = {
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
 
-        return allPosts.slice(0, 10).map((p: any) => ({ id: `disc-${p.id}`, ...p, isSponsored: boostedIds.includes(p.product_id) }));
+        return allPosts.slice(0, 10).map((p: any) => ({ 
+            ...p,
+            id: `disc-${p.id}`,
+            product: {
+                ...mapProduct(p.product),
+                isSponsored: boostedIds.includes(p.product_id)
+            }
+        }));
     },
 
     getRecommendations: async (productId: string): Promise<Post[]> => {
