@@ -13,26 +13,35 @@ const isOnline = (lastSeenAt?: string) => {
     return diff < 2 * 60 * 1000; // 2 minutes threshold
 };
 
-export const mapProduct = (p: any): Product => ({
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    price: p.price,
-    currency: p.currency,
-    image: p.image,
-    video: p.video,
-    likes: p.likes_count || 0,
-    stock: p.stock_count,
-    isOutOfStock: p.is_out_of_stock,
-    commentsCount: p.comments_aggregate?.[0]?.count || p.comments_count || 0,
-    sharesCount: p.shares_count || 0,
-    userId: p.owner_id,
-    category: p.category,
-    tags: p.tags,
-    // Defaults, usually overwritten if auth context is available during fetch
-    isLiked: false,
-    isBookmarked: false
-});
+export const mapProduct = (p: any): Product => {
+    // Parse comma-separated images if they exist
+    const imageList = typeof p.image === 'string' && p.image.includes(',') 
+        ? p.image.split(',').map((u: string) => u.trim()) 
+        : [p.image];
+    const mainImage = imageList[0] || 'placeholder';
+
+    return {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        currency: p.currency,
+        image: mainImage,
+        images: imageList,
+        video: p.video,
+        likes: p.likes_count || 0,
+        stock: p.stock_count,
+        isOutOfStock: p.is_out_of_stock,
+        commentsCount: p.comments_aggregate?.[0]?.count || p.comments_count || 0,
+        sharesCount: p.shares_count || 0,
+        userId: p.owner_id,
+        category: p.category,
+        tags: p.tags,
+        // Defaults, usually overwritten if auth context is available during fetch
+        isLiked: false,
+        isBookmarked: false
+    };
+};
 
 const getFollowedVroomIds = async (): Promise<Set<string>> => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -458,23 +467,39 @@ export const api = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
-        let imageUrl = '';
+        let imageUrls: string[] = [];
         let videoUrl = '';
-        if (data.media) {
+        
+        if (data.mediaType === 'video' && data.media) {
             const res = await fetch(data.media);
             const blob = await res.blob();
-            const fileExt = data.mediaType === 'video' ? 'mp4' : 'jpg';
-            const fileName = `${Date.now()}.${fileExt}`;
-            const { error: uploadError } = await supabase.storage
-                .from('products')
-                .upload(fileName, blob);
-
+            const fileName = `${Date.now()}.mp4`;
+            const { error: uploadError } = await supabase.storage.from('products').upload(fileName, blob);
             if (uploadError) throw uploadError;
-
             const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(fileName);
-            if (data.mediaType === 'video') videoUrl = publicUrl;
-            else imageUrl = publicUrl;
+            videoUrl = publicUrl;
+        } else if (data.mediaType === 'image' && data.mediaList && data.mediaList.length > 0) {
+            for (let i = 0; i < data.mediaList.length; i++) {
+                const res = await fetch(data.mediaList[i]);
+                const blob = await res.blob();
+                const fileName = `${Date.now()}-${i}.jpg`;
+                const { error: uploadError } = await supabase.storage.from('products').upload(fileName, blob);
+                if (uploadError) throw uploadError;
+                const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(fileName);
+                imageUrls.push(publicUrl);
+            }
+        } else if (data.mediaType === 'image' && data.media) {
+            // Fallback for single image (just in case)
+            const res = await fetch(data.media);
+            const blob = await res.blob();
+            const fileName = `${Date.now()}.jpg`;
+            const { error: uploadError } = await supabase.storage.from('products').upload(fileName, blob);
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(fileName);
+            imageUrls.push(publicUrl);
         }
+
+        const finalImageString = imageUrls.length > 0 ? imageUrls.join(',') : 'placeholder';
 
         const { data: product, error: prodError } = await supabase
             .from('products')
@@ -484,7 +509,7 @@ export const api = {
                 description: data.description,
                 price: parseFloat(data.price),
                 currency: data.currency,
-                image: imageUrl || 'placeholder',
+                image: finalImageString,
                 video: videoUrl,
                 category: data.category,
                 tags: data.tags

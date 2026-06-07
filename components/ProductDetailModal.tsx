@@ -330,6 +330,19 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 )}
                 {localProduct.video ? (
                     <VideoWithWatermark src={localProduct.video} controls containerClassName="h-full w-full" className="h-full w-full object-contain" userId={localProduct.userId} />
+                ) : localProduct.images && localProduct.images.length > 1 ? (
+                    <div className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
+                        {localProduct.images.map((img, idx) => (
+                            <div key={idx} className="w-full h-full flex-shrink-0 snap-center relative">
+                                <img src={img} alt={`${localProduct.name} - view ${idx + 1}`} className="w-full h-full object-contain" />
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/50 px-3 py-1.5 rounded-full backdrop-blur-sm">
+                                    {localProduct.images!.map((_, i) => (
+                                        <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i === idx ? 'bg-white' : 'bg-white/40'}`} />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 ) : (
                     <img src={localProduct.image} alt={localProduct.name} className="h-full w-full object-contain" />
                 )}

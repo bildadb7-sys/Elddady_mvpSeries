@@ -61,6 +61,7 @@ export interface Product {
   price: number;
   currency: string;
   image: string;
+  images?: string[]; // Array of multiple images for the product card slider
   video?: string; // New field for video posts
   likes: number;
   stock?: number;

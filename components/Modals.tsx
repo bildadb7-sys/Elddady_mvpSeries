@@ -664,6 +664,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [media, setMedia] = useState<string | null>(null);
+  const [mediaList, setMediaList] = useState<string[]>([]);
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [isWatermarking, setIsWatermarking] = useState(false);
 
@@ -691,12 +692,17 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
       return;
     }
 
+    const finalMediaList = mediaList.length > 0 && media 
+      ? [media, ...mediaList.filter(m => m !== media)] 
+      : mediaList;
+
     onSubmit({
       name,
       description,
       price,
       currency,
       media,
+      mediaList: finalMediaList,
       mediaType,
       category,
       tags: finalTags
@@ -708,6 +714,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
     setPrice('');
     setCurrency('USD');
     setMedia(null);
+    setMediaList([]);
     setMediaType('image');
     setCategory('Electronics & Technology');
     setFinalTags([]);
@@ -715,39 +722,66 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      alert("File size exceeds 5MB limit.");
-      e.target.value = ''; // Reset input
-      return;
-    }
+    if (files[0].type.startsWith('image/')) {
+        if (files.length > 3) {
+            alert("You can upload a maximum of 3 images.");
+            e.target.value = '';
+            return;
+        }
 
-    if (file.type.startsWith('image/')) {
-      setIsWatermarking(true);
-      try {
-        const watermarkedBlob = await applyWatermark(file, userHandle || undefined);
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          if (ev.target?.result) {
-            setMedia(ev.target.result as string);
+        setIsWatermarking(true);
+        try {
+            const newMediaList: string[] = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file.type.startsWith('image/')) {
+                    alert("Please select only images or one video.");
+                    return;
+                }
+                if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                    alert(`Image ${file.name} exceeds 10MB limit.`);
+                    return;
+                }
+                const watermarkedBlob = await applyWatermark(file, userHandle || undefined);
+                const reader = new FileReader();
+                const base64 = await new Promise<string>((resolve) => {
+                    reader.onload = (ev) => resolve(ev.target?.result as string);
+                    reader.readAsDataURL(watermarkedBlob);
+                });
+                newMediaList.push(base64);
+            }
+            
+            // To make sure the user's selected "Main view" is first, we'll keep the list as is,
+            // but the `media` state stores the main one. If we pass `mediaList` sorted or 
+            // pass `media` separately to api.ts, we can ensure `media` is the first element.
+            // Right now, `api.ts` expects `data.mediaList`, we need to make sure the main image 
+            // is at index 0. We will handle that before `onSubmit` or let the user click to select.
+            
+            setMediaList(newMediaList);
+            setMedia(newMediaList[0]);
             setMediaType('image');
-          }
-        };
-        reader.readAsDataURL(watermarkedBlob);
-      } catch (err) {
-        console.error(err);
-        alert("Failed to apply watermark.");
-      } finally {
-        setIsWatermarking(false);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to apply watermark.");
+        } finally {
+            setIsWatermarking(false);
+        }
+    } else if (files[0].type.startsWith('video/')) {
+      const file = files[0];
+      if (file.size > 15 * 1024 * 1024) { // 15MB limit
+        alert("Video size exceeds 15MB limit.");
+        e.target.value = '';
+        return;
       }
-    } else {
       // Video handling remains direct
       const reader = new FileReader();
       reader.onload = (ev) => {
         if (ev.target?.result) {
           setMedia(ev.target.result as string);
+          setMediaList([]);
           setMediaType('video');
         }
       };
@@ -757,6 +791,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
 
   const handleClose = () => {
     setMedia(null);
+    setMediaList([]);
     setMediaType('image');
     setCategory('Electronics & Technology');
     setFinalTags([]);
@@ -852,6 +887,7 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
                 ref={fileInputRef}
                 className="hidden"
                 accept="image/*,video/*"
+                multiple
                 onChange={handleFileChange}
               />
 
@@ -860,13 +896,23 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
                   <i className="fas fa-circle-notch fa-spin text-2xl text-primary mb-2"></i>
                   <p className="text-sm font-bold text-primary">Applying Protection...</p>
                 </div>
-              ) : media ? (
+              ) : mediaList.length > 0 && mediaType === 'image' ? (
+                <div className="w-full h-full relative flex flex-col p-2">
+                    <div className="flex gap-2 justify-center flex-wrap">
+                        {mediaList.map((m, idx) => (
+                            <div key={idx} className={`relative cursor-pointer border-4 ${media === m ? 'border-primary' : 'border-transparent'}`} onClick={(e) => { e.stopPropagation(); setMedia(m); }}>
+                                <img src={m} alt={`Preview ${idx}`} className="h-32 w-32 object-cover rounded" />
+                                {media === m && <div className="absolute top-1 left-1 bg-primary text-white text-[10px] px-1 rounded font-bold">MAIN VIEW</div>}
+                            </div>
+                        ))}
+                    </div>
+                  <div className="absolute top-0 right-0 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 cursor-pointer" onClick={(e) => { e.stopPropagation(); setMediaList([]); setMedia(null); }}>
+                    <i className="fas fa-times"></i>
+                  </div>
+                </div>
+              ) : media && mediaType === 'video' ? (
                 <div className="w-full h-full relative">
-                  {mediaType === 'video' ? (
-                    <VideoWithWatermark src={media} className="max-h-48 w-full object-contain rounded" controls={false} userId={CURRENT_USER.id} />
-                  ) : (
-                    <img src={media} alt="Preview" className="max-h-48 w-full object-contain rounded" />
-                  )}
+                  <VideoWithWatermark src={media} className="max-h-48 w-full object-contain rounded" controls={false} userId={CURRENT_USER.id} />
                   <div className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70" onClick={(e) => { e.stopPropagation(); setMedia(null); }}>
                     <i className="fas fa-times"></i>
                   </div>
@@ -874,8 +920,8 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit 
               ) : (
                 <>
                   <i className="fas fa-cloud-upload-alt text-2xl text-muted-foreground mb-2"></i>
-                  <p className="text-muted-foreground">Click to upload image or video</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG, MP4 up to 5MB</p>
+                  <p className="text-muted-foreground">Click to upload up to 3 images or 1 video</p>
+                  <p className="text-xs text-muted-foreground mt-1">Images up to 10MB, Video up to 15MB</p>
                 </>
               )}
             </div>
