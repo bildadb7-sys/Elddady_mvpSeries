@@ -211,6 +211,21 @@ const SharedProductCard: React.FC<{
     const displayCurrency = liveData?.currency ?? product.currency;
     const displayImage = liveData?.image ?? product.image;
     const isOutOfStock = liveData?.isOutOfStock ?? false;
+    
+    // Image Slider logic
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const allImages = liveData?.images && liveData.images.length > 0 ? liveData.images : [displayImage];
+    const currentDisplayImage = allImages[currentImageIndex] || displayImage;
+
+    const nextImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+    };
+
+    const prevImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentImageIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
+    };
 
     // Build a Product-shaped object for callbacks
     const toProduct = (): Product => ({
@@ -270,17 +285,39 @@ const SharedProductCard: React.FC<{
     };
 
     return (
-        <div className="w-[280px] rounded-xl overflow-hidden border border-border/30 bg-white dark:bg-zinc-900 shadow-sm">
+        <div className="w-[280px] rounded-xl overflow-hidden border border-border/30 dark:border-zinc-700/50 bg-white dark:bg-zinc-900 shadow-sm">
             {/* Product Image */}
             <div
-                className="relative cursor-pointer hover:opacity-95 transition-opacity bg-black"
+                className="relative cursor-pointer hover:opacity-95 transition-opacity bg-black group/slider"
                 onClick={handleCardClick}
             >
                 <img
-                    src={displayImage}
+                    src={currentDisplayImage}
                     alt={displayName}
                     className={`w-full h-[180px] object-cover transition-opacity ${isLoading ? 'opacity-80' : ''}`}
                 />
+                
+                {allImages.length > 1 && (
+                    <>
+                        <button
+                            onClick={prevImage}
+                            className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover/slider:opacity-100 transition-opacity hover:bg-black/70"
+                        >
+                            <i className="fas fa-chevron-left text-[10px]"></i>
+                        </button>
+                        <button
+                            onClick={nextImage}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover/slider:opacity-100 transition-opacity hover:bg-black/70"
+                        >
+                            <i className="fas fa-chevron-right text-[10px]"></i>
+                        </button>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                            {allImages.map((_, idx) => (
+                                <div key={idx} className={`w-1.5 h-1.5 rounded-full ${idx === currentImageIndex ? 'bg-white' : 'bg-white/50'}`} />
+                            ))}
+                        </div>
+                    </>
+                )}
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                 {/* Shared badge */}
@@ -331,7 +368,7 @@ const SharedProductCard: React.FC<{
                         disabled={isOutOfStock}
                         className={`text-white px-3 rounded-lg flex items-center justify-center active:scale-95 transition-all shadow-sm ${
                             isOutOfStock
-                                ? 'bg-muted-foreground cursor-not-allowed opacity-50'
+                                ? 'bg-muted-foreground dark:bg-zinc-600 cursor-not-allowed opacity-50'
                                 : 'bg-[#E86C44] hover:bg-[#d6623e]'
                         }`}
                         title={isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
@@ -343,18 +380,18 @@ const SharedProductCard: React.FC<{
                     </button>
                     <button
                         onClick={handleLike}
-                        className={`flex-1 bg-background border border-border/40 rounded-lg flex items-center justify-center gap-1 hover:bg-muted/50 active:scale-95 transition-all ${isLiked ? 'bg-red-50/50' : ''}`}
+                        className={`flex-1 bg-background dark:bg-zinc-800 border border-border/40 dark:border-zinc-700/50 rounded-lg flex items-center justify-center gap-1 hover:bg-muted/50 dark:hover:bg-zinc-700 active:scale-95 transition-all ${isLiked ? 'bg-red-50/50 dark:bg-red-900/30' : ''}`}
                         title="Like"
                     >
-                        <i className={`${isLiked ? 'fas text-red-500' : 'far text-[#E86C44]'} fa-heart text-xs transition-transform ${isLiked ? 'scale-110' : ''}`} />
-                        {likes > 0 && <span className={`text-[9px] font-black ${isLiked ? 'text-red-500' : 'text-foreground'}`}>{likes}</span>}
+                        <i className={`${isLiked ? 'fas text-red-500' : 'far text-[#E86C44] dark:text-[#E86C44]'} fa-heart text-xs transition-transform ${isLiked ? 'scale-110' : ''}`} />
+                        {likes > 0 && <span className={`text-[9px] font-black ${isLiked ? 'text-red-500' : 'text-foreground dark:text-zinc-200'}`}>{likes}</span>}
                     </button>
                     <button
                         onClick={handleBookmark}
-                        className="w-9 bg-background border border-border/40 rounded-lg flex items-center justify-center hover:bg-muted/50 active:scale-95 transition-all"
+                        className="w-9 bg-background dark:bg-zinc-800 border border-border/40 dark:border-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-muted/50 dark:hover:bg-zinc-700 active:scale-95 transition-all"
                         title="Bookmark"
                     >
-                        <i className={`${isBookmarked ? 'fas' : 'far'} fa-bookmark text-[#E86C44] text-xs`} />
+                        <i className={`${isBookmarked ? 'fas' : 'far'} fa-bookmark text-[#E86C44] dark:text-[#E86C44] text-xs`} />
                     </button>
                 </div>
             </div>
