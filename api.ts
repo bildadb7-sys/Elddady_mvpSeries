@@ -2,6 +2,7 @@
 import { supabase } from './supabaseClient';
 import { User, Product, Vroom, Post, Conversation, Message, Order, DetailedDispute, PostReport, SearchResults, CartItem, Comment, Reaction } from './types';
 import { APP_URL } from './constants';
+import { getApiCache, setApiCache, addToOutbox } from './utils/db';
 
 // --- HELPERS ---
 
@@ -414,6 +415,11 @@ export const api = {
 
     getFeed: async (): Promise<Post[]> => {
         try {
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                const cached = await getApiCache('feed');
+                if (cached) return cached;
+            }
+
             const { data: { user } } = await supabase.auth.getUser();
 
             const { data, error } = await supabase
@@ -433,7 +439,7 @@ export const api = {
 
             if (error) throw error;
 
-            return data.map((p: any) => {
+            const feedData = data.map((p: any) => {
                 const isLiked = p.product.product_likes?.some((l: any) => l.user_id === user?.id) || false;
                 const isBookmarked = p.product.bookmarks?.some((b: any) => b.user_id === user?.id) || false;
                 const commentsCount = p.product.comments_aggregate?.[0]?.count || 0;
@@ -457,13 +463,28 @@ export const api = {
                     sharesCount: p.product.shares_count || 0
                 };
             });
+            
+            if (typeof navigator !== 'undefined') {
+                setApiCache('feed', feedData).catch(console.error);
+            }
+
+            return feedData;
         } catch (e) {
             console.error("Feed fetch error", e);
+            if (typeof navigator !== 'undefined') {
+                const cached = await getApiCache('feed');
+                if (cached) return cached;
+            }
             return [];
         }
     },
 
     postProduct: async (data: any) => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            await addToOutbox('postProduct', { data });
+            return;
+        }
+
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
@@ -547,6 +568,11 @@ export const api = {
     },
 
     toggleLike: async (productId: string) => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            await addToOutbox('toggleLike', { productId });
+            return { likes: 0, isLiked: true }; // Optimistic
+        }
+
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 

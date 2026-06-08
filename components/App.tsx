@@ -25,6 +25,8 @@ import { EMPTY_USER, APP_URL } from '../constants';
 import { supabase } from '../supabaseClient';
 import { CurrencyProvider } from '../context/CurrencyContext';
 import { NotificationProvider } from '../context/NotificationContext';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { OfflineBanner } from './OfflineBanner';
 import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 
 // Pages that can be safely restored after a browser reload (excludes ephemeral pages like PUBLIC_PROFILE)
@@ -67,6 +69,7 @@ const UserProfileRoute: React.FC<{
 const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isOnline, isSyncing } = useNetworkStatus();
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null | 'google_unregistered'>(null);
   const [currentUser, setCurrentUser] = useState<User>(EMPTY_USER);
@@ -387,6 +390,7 @@ const App: React.FC = () => {
 
   const appLayout = (child: React.ReactNode) => (
     <div className="min-h-screen bg-background text-foreground font-sans">
+      <OfflineBanner isOnline={isOnline} isSyncing={isSyncing} />
       <CartOverlay
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
