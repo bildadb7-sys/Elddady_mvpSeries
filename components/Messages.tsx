@@ -816,13 +816,13 @@ const ChatDetail: React.FC<{
     const lastActive = !chat.isGroup ? formatLastActive(chat.user?.lastSeenAt as any) : '';
 
     return (
-        <div className="flex flex-col h-full relative bg-white/90 backdrop-blur-sm">
+        <div className="flex flex-col h-full relative bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm">
             {/* Chat Header */}
             <div className="p-4 flex items-center justify-between border-b border-border/50">
                 <div className="flex items-center gap-4 cursor-pointer" onClick={chat.isGroup ? onOpenGroupInfo : (!chat.isGroup && chat.user && onUserClick ? () => onUserClick(chat.user!.id) : undefined)}>
                     <button
                         onClick={(e) => { e.stopPropagation(); onBack(); }}
-                        className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground"
+                        className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground dark:text-zinc-200"
                     >
                         <i className="fas fa-arrow-left text-lg"></i>
                     </button>
@@ -833,11 +833,11 @@ const ChatDetail: React.FC<{
                         )}
                     </div>
                     <div>
-                        <h2 className="font-bold text-lg leading-tight flex items-center gap-2">
+                        <h2 className="font-bold text-lg leading-tight flex items-center gap-2 text-foreground dark:text-white">
                             {name}
-                            {chat.isGroup && <i className="fas fa-chevron-right text-xs text-muted-foreground"></i>}
+                            {chat.isGroup && <i className="fas fa-chevron-right text-xs text-muted-foreground dark:text-zinc-400"></i>}
                         </h2>
-                        <p className="text-sm text-muted-foreground font-medium">
+                        <p className="text-sm text-muted-foreground dark:text-zinc-300 font-medium">
                             {chat.isGroup
                                 ? `${chat.participants?.length || 0} members`
                                 : (isOnline ? 'Active Now' : `Active ${lastActive}`)
@@ -862,7 +862,7 @@ const ChatDetail: React.FC<{
                     if (currentHeader !== prevHeader) {
                         acc.push(
                             <div key={`header-${index}`} className="text-center my-4">
-                                <span className="text-[11px] font-bold text-muted-foreground bg-muted/60 px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                                <span className="text-[11px] font-bold text-muted-foreground dark:text-zinc-300 bg-muted/60 dark:bg-zinc-800 px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                                     {currentHeader}
                                 </span>
                             </div>
@@ -1001,27 +1001,27 @@ const ChatDetail: React.FC<{
                                     {/* Actions Button (Hover) */}
                                     {!msg.isDeleted && (
                                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-                                        <button onClick={() => setReplyTo(msg)} className="p-1 text-muted-foreground hover:text-primary transition-colors" title="Reply">
+                                        <button onClick={() => setReplyTo(msg)} className="p-1 text-muted-foreground dark:text-zinc-400 hover:text-primary dark:hover:text-primary transition-colors" title="Reply">
                                             <i className="fas fa-reply text-xs"></i>
                                         </button>
-                                        <button onClick={() => setActiveReactionId(activeReactionId === msg.id ? null : msg.id)} className="p-1 text-muted-foreground hover:text-primary transition-colors" title="React">
+                                        <button onClick={() => setActiveReactionId(activeReactionId === msg.id ? null : msg.id)} className="p-1 text-muted-foreground dark:text-zinc-400 hover:text-primary dark:hover:text-primary transition-colors" title="React">
                                             <i className="far fa-face-smile text-xs"></i>
                                         </button>
-                                        <button onClick={() => api.toggleStarMessage(msg.id)} className="p-1 text-muted-foreground hover:text-yellow-500 transition-colors" title="Star">
+                                        <button onClick={() => api.toggleStarMessage(msg.id)} className="p-1 text-muted-foreground dark:text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-500 transition-colors" title="Star">
                                             <i className={`${msg.starredBy?.includes(currentUser.id) ? 'fas text-yellow-500' : 'far'} fa-star text-xs`}></i>
                                         </button>
                                         {onForward && (
-                                            <button onClick={() => onForward(msg)} className="p-1 text-muted-foreground hover:text-green-500 transition-colors" title="Forward">
+                                            <button onClick={() => onForward(msg)} className="p-1 text-muted-foreground dark:text-zinc-400 hover:text-green-500 dark:hover:text-green-500 transition-colors" title="Forward">
                                                 <i className="fas fa-share text-xs"></i>
                                             </button>
                                         )}
                                         {msg.isMe && (!msg.createdAt || Date.now() - new Date(msg.createdAt).getTime() < 180000) && (
-                                            <button onClick={() => { setEditingMessageId(msg.id); setEditContent(msg.content); }} className="p-1 text-muted-foreground hover:text-secondary transition-colors" title="Edit">
+                                            <button onClick={() => { setEditingMessageId(msg.id); setEditContent(msg.content); }} className="p-1 text-muted-foreground dark:text-zinc-400 hover:text-secondary dark:hover:text-secondary transition-colors" title="Edit">
                                                 <i className="fas fa-pen text-xs"></i>
                                             </button>
                                         )}
                                         {msg.isMe && (
-                                            <button onClick={() => { if (confirm("Delete message?")) api.deleteMessage(msg.id) }} className="p-1 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
+                                            <button onClick={() => { if (confirm("Delete message?")) api.deleteMessage(msg.id) }} className="p-1 text-muted-foreground dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-500 transition-colors" title="Delete">
                                                 <i className="far fa-trash-alt text-xs"></i>
                                             </button>
                                         )}
