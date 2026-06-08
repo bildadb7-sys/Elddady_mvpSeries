@@ -292,7 +292,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ userId, currentUserId, onNavi
                 className="ml-auto w-6 h-6 flex items-center justify-center rounded-full bg-muted text-foreground hover:bg-muted/80 transition-all shadow-sm"
                 title="Toggle Dark Mode"
               >
-                <i className={`fas ${isDarkMode ? 'fa-sun text-yellow-500' : 'fa-moon text-blue-500'}`}></i>
+                <i className={`fas ${isDarkMode ? 'fa-sun text-yellow-500' : 'fa-moon text-zinc-800'}`}></i>
               </button>
             </div>
           </div>
