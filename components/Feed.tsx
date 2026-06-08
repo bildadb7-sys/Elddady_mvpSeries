@@ -163,9 +163,9 @@ const FeedPost: React.FC<{
                         <p className="text-base leading-relaxed whitespace-pre-line text-foreground/90">{post.content}</p>
 
                         {/* Seamless Product Card Unit - Zero separation visible */}
-                        <div className="flex flex-col border border-border/10 rounded-2xl bg-transparent shadow-none">
+                        <div className="flex flex-col border border-border/10 dark:border-white/5 rounded-2xl bg-transparent shadow-none">
                             {/* Media Container - Rounded corners & boundary added */}
-                            <div className="cursor-pointer hover:opacity-95 transition-opacity bg-black rounded-2xl overflow-hidden border-b border-border/10 relative">
+                            <div className="cursor-pointer hover:opacity-95 transition-opacity bg-black rounded-2xl overflow-hidden border-b border-border/10 dark:border-white/5 relative">
                                 {/* Out of Stock Overlay */}
                                 {product.isOutOfStock && (
                                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 pointer-events-none">
@@ -220,20 +220,20 @@ const FeedPost: React.FC<{
                                     <button
                                         data-title="Like"
                                         onClick={() => handleLike(product)}
-                                        className={`custom-tooltip flex-1 bg-background border border-border/40 rounded-xl flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 hover:bg-muted/50 active:scale-95 shadow-none transition-colors ${product.isLiked ? 'bg-red-50/50' : ''}`}
+                                        className={`custom-tooltip flex-1 bg-background dark:bg-white/5 border border-border/40 dark:border-white/5 rounded-xl flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 hover:bg-muted/50 dark:hover:bg-white/10 active:scale-95 shadow-none transition-colors ${product.isLiked ? 'bg-red-50/50 dark:bg-red-500/10' : ''}`}
                                     >
-                                        <i className={`${product.isLiked ? 'fas text-red-500' : 'far text-[#E86C44]'} fa-heart text-base transition-transform ${product.isLiked ? 'scale-110' : ''}`}></i>
-                                        <span className={`text-[10px] md:text-xs font-black ${product.isLiked ? 'text-red-500' : 'text-foreground'}`}>{product.likes}</span>
+                                        <i className={`${product.isLiked ? 'fas text-red-500 dark:text-red-400' : 'far text-[#E86C44]'} fa-heart text-base transition-transform ${product.isLiked ? 'scale-110' : ''}`}></i>
+                                        <span className={`text-[10px] md:text-xs font-black ${product.isLiked ? 'text-red-500 dark:text-red-400' : 'text-foreground'}`}>{product.likes}</span>
                                     </button>
-                                    <button data-title="Comment" onClick={handleProductClick} className="custom-tooltip flex-1 bg-background border border-border/40 rounded-xl flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 hover:bg-muted/50 active:scale-95 shadow-none">
+                                    <button data-title="Comment" onClick={handleProductClick} className="custom-tooltip flex-1 bg-background dark:bg-white/5 border border-border/40 dark:border-white/5 rounded-xl flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 hover:bg-muted/50 dark:hover:bg-white/10 active:scale-95 shadow-none">
                                         <i className="far fa-comment text-foreground text-base"></i>
                                         <span className="text-[10px] md:text-xs font-black text-foreground">{product.commentsCount}</span>
                                     </button>
-                                    <button data-title="Share" onClick={() => onShare(product)} className="custom-tooltip flex-1 bg-background border border-border/40 rounded-xl flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 hover:bg-muted/50 active:scale-95 shadow-none">
+                                    <button data-title="Share" onClick={() => onShare(product)} className="custom-tooltip flex-1 bg-background dark:bg-white/5 border border-border/40 dark:border-white/5 rounded-xl flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 hover:bg-muted/50 dark:hover:bg-white/10 active:scale-95 shadow-none">
                                         <i className="fas fa-share text-foreground text-base"></i>
                                         <span className="text-[10px] md:text-xs font-black text-foreground">{product.sharesCount || 0}</span>
                                     </button>
-                                    <button data-title="Bookmark" onClick={() => handleBookmark(product)} className="custom-tooltip w-12 bg-background border border-border/40 rounded-xl flex items-center justify-center hover:bg-muted/50 active:scale-95 shadow-none">
+                                    <button data-title="Bookmark" onClick={() => handleBookmark(product)} className="custom-tooltip w-12 bg-background dark:bg-white/5 border border-border/40 dark:border-white/5 rounded-xl flex items-center justify-center hover:bg-muted/50 dark:hover:bg-white/10 active:scale-95 shadow-none">
                                         <i className={`${product.isBookmarked ? 'fas' : 'far'} fa-bookmark text-[#E86C44] text-base`}></i>
                                     </button>
                                 </div>
