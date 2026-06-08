@@ -750,6 +750,13 @@ const Profile: React.FC<ProfileProps> = ({ user, isOwner: propIsOwner = false, o
     const [activeDisputeOrderId, setActiveDisputeOrderId] = useState<string | null>(null);
     const [reviewDisputeOrderId, setReviewDisputeOrderId] = useState<string | null>(null);
     const [promoteItem, setPromoteItem] = useState<{ type: 'product' | 'vroom', id: string, name: string } | null>(null);
+    const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
+
+    const toggleDarkMode = () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        setIsDarkMode(isDark);
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    };
 
     // New State for Accurate Counts
     const [stats, setStats] = useState({ products: 0, vrooms: 0, followers: 0 });
@@ -1226,6 +1233,15 @@ const Profile: React.FC<ProfileProps> = ({ user, isOwner: propIsOwner = false, o
                                 <div className="text-center">
                                     <div className="font-black text-2xl text-foreground">{followerCount.toLocaleString()}</div>
                                     <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Followers</div>
+                                </div>
+                                <div className="ml-auto flex items-center">
+                                    <button
+                                        onClick={toggleDarkMode}
+                                        className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-foreground hover:bg-muted/80 transition-all shadow-sm"
+                                        title="Toggle Dark Mode"
+                                    >
+                                        <i className={`fas ${isDarkMode ? 'fa-sun text-yellow-500' : 'fa-moon text-blue-500'} text-lg`}></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>

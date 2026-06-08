@@ -137,6 +137,13 @@ const App: React.FC = () => {
     }
   }, [currentPage]);
 
+  // Apply saved theme preference on load
+  useEffect(() => {
+    if (localStorage.getItem('theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
   // Check for Admin hash
   const [isAdminView, setIsAdminView] = useState(window.location.hash === '#bahati' || window.location.hash === '#/bahati');
 

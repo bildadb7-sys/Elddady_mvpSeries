@@ -23,6 +23,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ userId, currentUserId, onNavi
   const [isFollowedBy, setIsFollowedBy] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [liveFollowersCount, setLiveFollowersCount] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
+
+  const toggleDarkMode = () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    setIsDarkMode(isDark);
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -280,6 +287,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ userId, currentUserId, onNavi
                   <i className="fas fa-users"></i> {liveFollowersCount} Followers
                 </span>
               )}
+              <button
+                onClick={toggleDarkMode}
+                className="ml-auto w-6 h-6 flex items-center justify-center rounded-full bg-muted text-foreground hover:bg-muted/80 transition-all shadow-sm"
+                title="Toggle Dark Mode"
+              >
+                <i className={`fas ${isDarkMode ? 'fa-sun text-yellow-500' : 'fa-moon text-blue-500'}`}></i>
+              </button>
             </div>
           </div>
         </div>
