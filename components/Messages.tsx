@@ -285,7 +285,7 @@ const SharedProductCard: React.FC<{
     };
 
     return (
-        <div className="w-[280px] rounded-xl overflow-hidden border border-border/30 dark:border-zinc-700/50 bg-white dark:bg-zinc-900 shadow-sm">
+        <div className="w-[280px] rounded-xl overflow-hidden border border-border/30 dark:border-transparent bg-white dark:bg-zinc-900 shadow-sm">
             {/* Product Image */}
             <div
                 className="relative cursor-pointer hover:opacity-95 transition-opacity bg-black group/slider"
@@ -380,7 +380,7 @@ const SharedProductCard: React.FC<{
                     </button>
                     <button
                         onClick={handleLike}
-                        className={`flex-1 bg-background dark:bg-zinc-800 border border-border/40 dark:border-zinc-700/50 rounded-lg flex items-center justify-center gap-1 hover:bg-muted/50 dark:hover:bg-zinc-700 active:scale-95 transition-all ${isLiked ? 'bg-red-50/50 dark:bg-red-900/30' : ''}`}
+                        className={`flex-1 bg-background dark:bg-zinc-800 border border-border/40 dark:border-transparent rounded-lg flex items-center justify-center gap-1 hover:bg-muted/50 dark:hover:bg-zinc-700 active:scale-95 transition-all ${isLiked ? 'bg-red-50/50 dark:bg-red-900/30' : ''}`}
                         title="Like"
                     >
                         <i className={`${isLiked ? 'fas text-red-500' : 'far text-[#E86C44] dark:text-[#E86C44]'} fa-heart text-xs transition-transform ${isLiked ? 'scale-110' : ''}`} />
@@ -388,7 +388,7 @@ const SharedProductCard: React.FC<{
                     </button>
                     <button
                         onClick={handleBookmark}
-                        className="w-9 bg-background dark:bg-zinc-800 border border-border/40 dark:border-zinc-700/50 rounded-lg flex items-center justify-center hover:bg-muted/50 dark:hover:bg-zinc-700 active:scale-95 transition-all"
+                        className="w-9 bg-background dark:bg-zinc-800 border border-border/40 dark:border-transparent rounded-lg flex items-center justify-center hover:bg-muted/50 dark:hover:bg-zinc-700 active:scale-95 transition-all"
                         title="Bookmark"
                     >
                         <i className={`${isBookmarked ? 'fas' : 'far'} fa-bookmark text-[#E86C44] dark:text-[#E86C44] text-xs`} />
