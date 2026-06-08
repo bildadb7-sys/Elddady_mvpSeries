@@ -1234,7 +1234,7 @@ const Profile: React.FC<ProfileProps> = ({ user, isOwner: propIsOwner = false, o
                                     <div className="font-black text-2xl text-foreground">{followerCount.toLocaleString()}</div>
                                     <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Followers</div>
                                 </div>
-                                <div className="ml-auto flex items-center">
+                                <div className="ml-auto flex items-center mr-4 md:mr-0">
                                     <button
                                         onClick={toggleDarkMode}
                                         className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-foreground hover:bg-muted/80 transition-all shadow-sm"
