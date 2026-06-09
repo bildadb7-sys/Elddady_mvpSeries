@@ -41,19 +41,15 @@ export const NotificationProvider: React.FC<{ children: ReactNode; currentUser: 
     audioRef.current = audio;
 
     // Browsers require a user gesture before playing audio.
-    // Unlock both HTMLAudioElement and AudioContext on first interaction.
+    // Unlock AudioContext on first interaction.
     const unlockAudio = () => {
-      if (audioRef.current) {
-        audioRef.current.play().then(() => {
-          audioRef.current!.pause();
-          audioRef.current!.currentTime = 0;
-        }).catch(() => {});
-      }
       try {
         if (!audioCtxRef.current) {
           audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
-        audioCtxRef.current.resume();
+        if (audioCtxRef.current.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
       } catch {}
     };
 
