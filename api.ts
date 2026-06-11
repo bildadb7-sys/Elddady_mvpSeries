@@ -1711,33 +1711,20 @@ export const api = {
         // Escrow and dispute status remain unchanged (Pending) – handled server-side
     },
 
-    fundWallet: async (amount: number, method: string, phone?: string) => {
+    fundWallet: async (amount: number, method?: string, phone?: string) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
-        if (method === 'M-Pesa') {
-            if (!phone) throw new Error("Phone number is required for M-Pesa");
-            const res = await fetchWithAuth('/mpesa/stkpush', {
-                method: 'POST',
-                body: JSON.stringify({ amount, phone })
-            });
-            // Return the checkoutRequestId so the UI can poll for confirmation
-            return {
-                newBalance: undefined,
-                isPending: true,
-                message: res.message,
-                checkoutRequestId: res.checkoutRequestId
-            };
-        }
-
-        // Direct Supabase credit (for demo/test mode)
-        const { data: newBalance, error } = await supabase.rpc('fund_wallet', {
-            user_uuid: user.id,
-            amount,
-            reference: null
+        const res = await fetchWithAuth('/paystack/initialize', {
+            method: 'POST',
+            body: JSON.stringify({ amount })
         });
-        if (error) throw error;
-        return { newBalance, isPending: false, checkoutRequestId: null };
+        
+        return {
+            access_code: res.access_code,
+            reference: res.reference,
+            authorization_url: res.authorization_url
+        };
     },
 
     withdrawWallet: async (amount: number, method: string, details: string) => {
@@ -1748,20 +1735,18 @@ export const api = {
         return res;
     },
 
-    // Poll Safaricom to confirm STK payment status and auto-credit wallet if confirmed.
-    // Call this every ~3s after initiating STK push until status is 'completed' or 'failed'.
-    queryMpesaTransaction: async (checkoutRequestId: string): Promise<{
+    verifyPaystackTransaction: async (reference: string): Promise<{
         status: 'pending' | 'completed' | 'failed' | 'cancelled';
         message?: string;
     }> => {
         try {
-            const res = await fetchWithAuth('/mpesa/query', {
+            const res = await fetchWithAuth('/paystack/verify', {
                 method: 'POST',
-                body: JSON.stringify({ checkoutRequestId })
+                body: JSON.stringify({ reference })
             });
             return { status: res.status || 'pending', message: res.message };
         } catch (e: any) {
-            return { status: 'pending', message: e.message };
+            return { status: 'failed', message: e.message };
         }
     },
 

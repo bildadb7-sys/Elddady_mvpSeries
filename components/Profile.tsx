@@ -271,16 +271,11 @@ const WalletTab: React.FC<{
         const amount = parseFloat(fundAmount);
         if (isNaN(amount) || amount <= 0) return alert("Please enter a valid amount");
 
-        if (fundMethod === 'mpesa' && (!mpesaPhone || mpesaPhone.length < 10)) {
-            return alert("Please enter a valid M-Pesa phone number");
-        }
-
         setIsProcessing(true);
         try {
-            await onFund(amount, fundMethod === 'mpesa' ? 'M-Pesa' : 'Card', mpesaPhone);
+            await onFund(amount, 'Paystack');
             setShowFundModal(false);
             setFundAmount('');
-            setMpesaPhone('');
         } catch (e) {
             alert("Funding failed. Please try again.");
         } finally {
@@ -389,58 +384,12 @@ const WalletTab: React.FC<{
                                 </div>
                             </div>
 
-                            {/* Payment Method Tabs */}
-                            <div className="flex p-1.5 bg-muted rounded-2xl gap-1">
-                                <button
-                                    onClick={() => setFundMethod('mpesa')}
-                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${fundMethod === 'mpesa' ? 'bg-white shadow-sm text-[#E86C44]' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    <i className="fas fa-mobile-alt"></i> M-Pesa
-                                </button>
-                                <button
-                                    onClick={() => setFundMethod('card')}
-                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${fundMethod === 'card' ? 'bg-white shadow-sm text-[#E86C44]' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    <i className="fas fa-credit-card"></i> Card
-                                </button>
-                            </div>
-
-                            {/* Method Specific Fields */}
-                            <div className="min-h-[120px]">
-                                {fundMethod === 'mpesa' ? (
-                                    <div className="space-y-4 animate-in slide-in-from-top-2">
-                                        <div className="bg-green-50 border border-green-100 p-4 rounded-2xl flex items-center gap-4">
-                                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/M-PESA_LOGO-01.svg/1200px-M-PESA_LOGO-01.svg.png" className="h-6" alt="M-Pesa" />
-                                            <div className="flex-1">
-                                                <p className="text-[10px] text-green-800 font-black uppercase">Direct STK Push</p>
-                                                <p className="text-[9px] text-green-700/70 font-bold">Safe & Instant deposit</p>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-muted-foreground uppercase ml-1">Phone Number</label>
-                                            <input
-                                                type="tel"
-                                                value={mpesaPhone}
-                                                onChange={(e) => setMpesaPhone(e.target.value)}
-                                                placeholder="254 7XX XXX XXX"
-                                                className="w-full px-5 py-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-[#E86C44]/20 focus:border-[#E86C44] outline-none font-bold"
-                                            />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4 animate-in slide-in-from-top-2">
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <div className="relative">
-                                                <i className="fas fa-credit-card absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50"></i>
-                                                <input placeholder="Card Number" className="w-full pl-12 pr-4 py-4 bg-background border border-border rounded-2xl outline-none focus:border-[#E86C44] font-bold" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <input placeholder="MM/YY" className="w-full px-4 py-4 bg-background border border-border rounded-2xl outline-none focus:border-[#E86C44] font-bold text-center" />
-                                                <input placeholder="CVC" className="w-full px-4 py-4 bg-background border border-border rounded-2xl outline-none focus:border-[#E86C44] font-bold text-center" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                            <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex items-center gap-4">
+                                <i className="fas fa-shield-alt text-blue-500 text-2xl"></i>
+                                <div className="flex-1">
+                                    <p className="text-[10px] text-blue-800 font-black uppercase">Secure Checkout</p>
+                                    <p className="text-[9px] text-blue-700/70 font-bold">Payments processed securely by Paystack</p>
+                                </div>
                             </div>
 
                             <button
@@ -1040,11 +989,28 @@ const Profile: React.FC<ProfileProps> = ({ user, isOwner: propIsOwner = false, o
     const handleFundWallet = async (amount: number, method: string, phone?: string) => {
         try {
             const result = await api.fundWallet(amount, method, phone);
-            if (result.isPending) {
-                alert(result.message || `Payment initiated via ${method}. Please check your phone.`);
-            } else if (result.newBalance !== undefined) {
-                setWalletBalance(result.newBalance);
-                alert(`Funds added successfully via ${method}!`);
+            if (result.access_code) {
+                const paystack = new (window as any).PaystackPop();
+                paystack.resumeTransaction(result.access_code, {
+                    onSuccess: async (transaction: any) => {
+                        try {
+                            const verifyResult = await api.verifyPaystackTransaction(transaction.reference);
+                            if (verifyResult.status === 'completed') {
+                                await fetchWalletData();
+                                alert(`Funds added successfully via Paystack!`);
+                            } else {
+                                alert(verifyResult.message || "Payment verification failed.");
+                            }
+                        } catch (err: any) {
+                            alert(err.message || "Failed to verify transaction");
+                        }
+                    },
+                    onCancel: () => {
+                        alert("Payment was cancelled.");
+                    }
+                });
+            } else {
+                alert("Failed to initialize Paystack payment.");
             }
         } catch (e: any) {
             alert(e.message || "Failed to fund wallet");

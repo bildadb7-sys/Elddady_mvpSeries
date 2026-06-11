@@ -14,55 +14,13 @@ import { verifyToken, ensureOwnership } from '../middleware/auth.js';
 import winkNLP from 'wink-nlp';
 import model from 'wink-eng-lite-web-model';
 
-// ─── Daraja (MPesa) Direct Integration ────────────────────────────────────────
-// We call Safaricom's REST API directly so we control every detail (URL, headers,
-// password generation) without depending on a 3rd-party SDK that may lag behind
-// API changes or require extra env vars at startup.
-const MPESA_ENV = (process.env.MPESA_ENV || 'sandbox') as 'sandbox' | 'production';
-const MPESA_BASE_URL = MPESA_ENV === 'production'
-    ? 'https://api.safaricom.co.ke'
-    : 'https://sandbox.safaricom.co.ke';
-const MPESA_CONSUMER_KEY = process.env.MPESA_CONSUMER_KEY || '';
-const MPESA_CONSUMER_SECRET = process.env.MPESA_CONSUMER_SECRET || '';
-// Sandbox defaults: Safaricom's official test shortcode & passkey.
-// Replace these env vars with your production values when going live.
-const MPESA_SHORTCODE = process.env.MPESA_SHORTCODE || '174379';
-const MPESA_PASSKEY = process.env.MPESA_PASSKEY
-    || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
-const MPESA_STK_URL = `${MPESA_BASE_URL}/mpesa/stkpush/v1/processrequest`;
-const MPESA_TOKEN_URL = `${MPESA_BASE_URL}/oauth/v1/generate?grant_type=client_credentials`;
-const MPESA_CALLBACK_URL = process.env.MPESA_CALLBACK_URL || 'https://www.elddady.com/api/mpesa/callback';
+// ─── Paystack Integration ────────────────────────────────────────
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || '';
 
-/** Cached OAuth token to avoid fetching on every request */
-let _mpesaToken: string | null = null;
-let _mpesaTokenExpiry: number = 0;
-
-async function getMpesaToken(): Promise<string> {
-    if (_mpesaToken && Date.now() < _mpesaTokenExpiry) return _mpesaToken;
-    const credentials = Buffer.from(`${MPESA_CONSUMER_KEY}:${MPESA_CONSUMER_SECRET}`).toString('base64');
-    const response = await fetch(MPESA_TOKEN_URL, {
-        headers: { Authorization: `Basic ${credentials}` },
-    });
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`MPesa OAuth failed (${response.status}): ${text}`);
-    }
-    const data = await response.json() as { access_token: string; expires_in: string };
-    _mpesaToken = data.access_token;
-    // Expire our cache 60 s before Safaricom does (they give 3600 s)
-    _mpesaTokenExpiry = Date.now() + (Number(data.expires_in) - 60) * 1000;
-    console.log('✅ MPesa OAuth token refreshed');
-    return _mpesaToken;
-}
-
-function getMpesaPassword(timestamp: string): string {
-    return Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
-}
-
-if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET) {
-    console.warn('⚠️  MPesa credentials not set in .env (MPESA_CONSUMER_KEY / MPESA_CONSUMER_SECRET). STK Push will be unavailable.');
+if (!PAYSTACK_SECRET_KEY) {
+    console.warn('⚠️  Paystack credentials not set in .env (PAYSTACK_SECRET_KEY). Payments will be unavailable.');
 } else {
-    console.log(`✅ MPesa Daraja configured (env: ${MPESA_ENV}, shortcode: ${MPESA_SHORTCODE})`);
+    console.log(`✅ Paystack configured`);
 }
 
 const PORT = 5000;
@@ -434,271 +392,148 @@ app.post('/api/admin/ban-user',
     }
 );
 
-// 5. MPesa STK Push — Direct Daraja API
-app.post('/api/mpesa/stkpush',
+// 5. Paystack Initialize Transaction
+app.post('/api/paystack/initialize',
     verifyToken,
     [
         body('amount').isNumeric().withMessage('Amount must be a number'),
-        body('phone').trim().escape().notEmpty().withMessage('Phone is required'),
     ],
     validate,
     async (req: Request, res: Response) => {
         const userId = (req as any).user?.id;
         if (!userId) return (res as any).status(401).send('Unauthorized');
 
-        if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET) {
-            return (res as any).status(503).json({ error: 'MPesa is not configured. Missing consumer credentials.' });
+        if (!PAYSTACK_SECRET_KEY) {
+            return (res as any).status(503).json({ error: 'Paystack is not configured. Missing secret key.' });
         }
 
-        const { amount, phone } = (req as any).body;
-
-        // Normalise phone to 254XXXXXXXXX format
-        const normalisePhone = (raw: string): string => {
-            const digits = raw.replace(/\D/g, '');
-            if (digits.startsWith('0')) return '254' + digits.slice(1);
-            if (digits.startsWith('254')) return digits;
-            if (digits.startsWith('7') || digits.startsWith('1')) return '254' + digits;
-            return digits;
-        };
-        const phoneFormatted = normalisePhone(String(phone));
-
-        // Timestamp: YYYYMMDDHHmmss
-        const now = new Date();
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
-            `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const { amount } = (req as any).body;
 
         try {
-            const token = await getMpesaToken();
-            const password = getMpesaPassword(timestamp);
+            // Fetch user's email from profile
+            const { data: profile } = await supabase.from('profiles').select('email').eq('id', userId).single();
+            const email = profile?.email || 'user@elddady.com'; // Fallback if no email
 
             const payload = {
-                BusinessShortCode: MPESA_SHORTCODE,
-                Password: password,
-                Timestamp: timestamp,
-                TransactionType: 'CustomerPayBillOnline',
-                Amount: Math.ceil(Number(amount)),
-                PartyA: phoneFormatted,
-                PartyB: MPESA_SHORTCODE,
-                PhoneNumber: phoneFormatted,
-                CallBackURL: MPESA_CALLBACK_URL,
-                AccountReference: 'CashyWallet',
-                TransactionDesc: 'Add Funds to Cashy Wallet',
+                email,
+                amount: Math.ceil(Number(amount)) * 100, // Paystack expects amount in lowest denomination (e.g., kobo/cents)
+                metadata: {
+                    user_id: userId,
+                    purpose: 'wallet_topup'
+                }
             };
 
-            const stkRes = await fetch(MPESA_STK_URL, {
+            const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
             });
 
-            const data = await stkRes.json() as any;
+            const data = await paystackRes.json() as any;
 
-            if (!stkRes.ok || data.errorCode) {
-                console.error('STK Push Daraja error:', data);
+            if (!paystackRes.ok || !data.status) {
+                console.error('Paystack initialize error:', data);
                 return (res as any).status(502).json({
-                    error: data.errorMessage || data.ResponseDescription || 'Daraja API error',
+                    error: data.message || 'Paystack API error',
                     details: data,
                 });
             }
 
-            const checkoutRequestId: string = data.CheckoutRequestID;
-            const amountCeil = Math.ceil(Number(amount));
-
-            // ── Persist mapping: Redis (fast) + Supabase (reliable fallback) ──
-            // 1. Redis — expires in 10 minutes
-            if (redis && redis.status === 'ready') {
-                await redis.set(`mpesa:${checkoutRequestId}`, userId, 'EX', 600).catch(() => { });
-            }
-            // 2. Supabase mpesa_requests table — survives Redis restarts & deploys
-            await supabase.from('mpesa_requests').insert({
-                checkout_request_id: checkoutRequestId,
-                user_id: userId,
-                amount: amountCeil,
-                status: 'pending',
-            }).then(({ error }) => {
-                if (error) console.warn('Could not persist mpesa_request to Supabase:', error.message);
-            });
-
-            console.log(`✅ STK Push sent to ${phoneFormatted} — CheckoutRequestID: ${checkoutRequestId}`);
+            console.log(`✅ Paystack initialized — Reference: ${data.data.reference}`);
             return (res as any).json({
                 success: true,
-                checkoutRequestId,
-                merchantRequestId: data.MerchantRequestID,
-                message: 'STK Push initiated. Please check your phone.',
+                access_code: data.data.access_code,
+                reference: data.data.reference,
+                authorization_url: data.data.authorization_url,
             });
 
         } catch (error: any) {
-            console.error('STK Push error:', error.message);
+            console.error('Paystack initialize error:', error.message);
             return (res as any).status(500).json({ error: 'Failed to initiate payment: ' + error.message });
         }
     },
 );
 
-// 6. MPesa Callback Webhook — receives result from Safaricom after user confirms on phone
-app.post('/api/mpesa/callback', async (req: Request, res: Response) => {
-    try {
-        const stkCallback = req.body?.Body?.stkCallback;
-
-        if (!stkCallback) {
-            return (res as any).json({ ResultCode: 1, ResultDesc: 'No callback data' });
-        }
-
-        const checkoutRequestId: string = stkCallback.CheckoutRequestID;
-
-        if (stkCallback.ResultCode === 0) {
-            // ── Successful payment ──────────────────────────────────────────────
-            const callbackMetadata = stkCallback.CallbackMetadata?.Item || [];
-            const amountItem = callbackMetadata.find((i: any) => i.Name === 'Amount');
-            const amount = amountItem ? Number(amountItem.Value) : 0;
-
-            console.log(`📲 MPesa callback received: CheckoutRequestID=${checkoutRequestId}, Amount=${amount}`);
-
-            if (amount > 0) {
-                // ── Resolve userId: try Redis first, then fall back to Supabase ──
-                let userId: string | null = null;
-
-                // 1. Redis fast-path
-                if (redis && redis.status === 'ready') {
-                    userId = await redis.get(`mpesa:${checkoutRequestId}`).catch(() => null);
-                }
-
-                // 2. Supabase fallback (always available)
-                if (!userId) {
-                    const { data: req } = await supabase
-                        .from('mpesa_requests')
-                        .select('user_id')
-                        .eq('checkout_request_id', checkoutRequestId)
-                        .eq('status', 'pending')
-                        .single();
-                    userId = req?.user_id || null;
-                }
-
-                if (userId) {
-                    // ── Credit the wallet via the fund_wallet RPC ──────────────
-                    const { error } = await supabase.rpc('fund_wallet', {
-                        user_uuid: userId,
-                        amount: amount,
-                        reference: checkoutRequestId,
-                    });
-
-                    if (error) {
-                        console.error(`❌ fund_wallet failed for ${userId}:`, error.message);
-                    } else {
-                        console.log(`✅ Wallet credited KSH ${amount} for user ${userId}`);
-                        // Clean up Redis key early
-                        if (redis && redis.status === 'ready') {
-                            redis.del(`mpesa:${checkoutRequestId}`).catch(() => { });
-                        }
-                    }
-                } else {
-                    console.warn(`⚠️ Callback: no user found for CheckoutRequestID ${checkoutRequestId}`);
-                }
-            }
-        } else {
-            // Mark as failed in Supabase for bookkeeping
-            await supabase
-                .from('mpesa_requests')
-                .update({ status: 'failed' })
-                .eq('checkout_request_id', checkoutRequestId)
-                .match(() => { });
-            console.log(`❌ Payment failed/cancelled: ${stkCallback.ResultDesc}`);
-        }
-
-        // Always reply 0 to Daraja to stop retries
-        return (res as any).json({ ResultCode: 0, ResultDesc: 'Success' });
-
-    } catch (e: any) {
-        console.error('MPesa callback error:', e.message);
-        return (res as any).json({ ResultCode: 0, ResultDesc: 'Handled with error' });
-    }
-});
-
-// 7. MPesa STK Query — frontend polls this to confirm payment status
-// Useful when the callback URL is not reachable in sandbox environments
-app.post('/api/mpesa/query',
+// 6. Paystack Verify Transaction
+app.post('/api/paystack/verify',
     verifyToken,
     [
-        body('checkoutRequestId').trim().notEmpty().withMessage('checkoutRequestId is required'),
+        body('reference').trim().notEmpty().withMessage('reference is required'),
     ],
     validate,
     async (req: Request, res: Response) => {
         const userId = (req as any).user?.id;
         if (!userId) return (res as any).status(401).send('Unauthorized');
 
-        const { checkoutRequestId } = (req as any).body;
+        const { reference } = (req as any).body;
 
         try {
             // 1. Check if already credited in our DB (avoid double crediting)
-            const { data: existing } = await supabase
-                .from('mpesa_requests')
-                .select('status, amount')
-                .eq('checkout_request_id', checkoutRequestId)
-                .eq('user_id', userId)
-                .single();
-
-            if (existing?.status === 'completed') {
-                return (res as any).json({ status: 'completed', alreadyCredited: true });
+            // Note: Since we removed mpesa_requests, we should ideally log transactions.
+            // For now, we rely on the fact that Paystack verification is idempotent 
+            // BUT we need to prevent double fund_wallet.
+            // We can use Redis to lock the reference.
+            const lockKey = `paystack_processed:${reference}`;
+            if (redis && redis.status === 'ready') {
+                const processed = await redis.get(lockKey);
+                if (processed) {
+                    return (res as any).json({ status: 'completed', alreadyCredited: true });
+                }
             }
 
-            // 2. Query Safaricom for real-time status
-            const now = new Date();
-            const pad = (n: number) => String(n).padStart(2, '0');
-            const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
-                `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-            const password = getMpesaPassword(timestamp);
-            const token = await getMpesaToken();
-
-            const queryUrl = `${MPESA_BASE_URL}/mpesa/stkpushquery/v1/query`;
-            const queryRes = await fetch(queryUrl, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    BusinessShortCode: MPESA_SHORTCODE,
-                    Password: password,
-                    Timestamp: timestamp,
-                    CheckoutRequestID: checkoutRequestId,
-                }),
+            // 2. Query Paystack for real-time status
+            const verifyUrl = `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`;
+            const verifyRes = await fetch(verifyUrl, {
+                method: 'GET',
+                headers: { 
+                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                    'Content-Type': 'application/json' 
+                },
             });
-            const queryData = await queryRes.json() as any;
+            const verifyData = await verifyRes.json() as any;
 
-            console.log('[STK Query]', queryData);
+            console.log('[Paystack Verify]', verifyData);
 
-            // ResultCode 0 = success
-            if (queryData.ResultCode === '0' || queryData.ResultCode === 0) {
-                // Only credit if this request hasn't been credited yet
-                if (existing?.status === 'pending' && existing?.amount > 0) {
-                    const { error } = await supabase.rpc('fund_wallet', {
-                        user_uuid: userId,
-                        amount: existing.amount,
-                        reference: checkoutRequestId,
-                    });
-                    if (error) {
-                        console.error('fund_wallet error during query-poll:', error.message);
-                        return (res as any).status(500).json({ error: 'Payment confirmed but wallet credit failed.' });
+            if (verifyData.status && verifyData.data.status === 'success') {
+                // Verified successfully
+                const amount = verifyData.data.amount / 100; // Convert back from lowest denomination
+
+                const { error } = await supabase.rpc('fund_wallet', {
+                    user_uuid: userId,
+                    amount: amount,
+                    reference: reference,
+                });
+
+                if (error) {
+                    console.error('fund_wallet error during paystack verify:', error.message);
+                    // It might fail if the reference was already used in fund_wallet (unique constraint on reference in ledger)
+                    if (error.message.includes('duplicate key value violates unique constraint')) {
+                         if (redis && redis.status === 'ready') {
+                             await redis.set(lockKey, '1', 'EX', 86400 * 30); // 30 days
+                         }
+                         return (res as any).json({ status: 'completed', alreadyCredited: true });
                     }
-                    console.log(`✅ [Poll] Wallet credited KSH ${existing.amount} for ${userId}`);
+                    return (res as any).status(500).json({ error: 'Payment confirmed but wallet credit failed.' });
                 }
+
+                console.log(`✅ [Paystack] Wallet credited KSH ${amount} for ${userId}`);
+                
+                // Mark as processed
+                if (redis && redis.status === 'ready') {
+                    await redis.set(lockKey, '1', 'EX', 86400 * 30); // 30 days
+                }
+
                 return (res as any).json({ status: 'completed', message: 'Payment confirmed and wallet credited.' });
-            } else if (queryData.ResultCode === '1032' || queryData.ResultCode === 1032) {
-                // 1032 = request cancelled by user
-                await supabase.from('mpesa_requests')
-                    .update({ status: 'cancelled' })
-                    .eq('checkout_request_id', checkoutRequestId).match(() => { });
-                return (res as any).json({ status: 'cancelled', message: 'Transaction cancelled.' });
-            } else if (queryData.errorCode) {
-                // Still pending / not yet processed
-                return (res as any).json({ status: 'pending', message: 'Transaction still processing.' });
             } else {
-                return (res as any).json({ status: 'failed', message: queryData.ResultDesc || 'Payment failed.' });
+                return (res as any).json({ status: 'failed', message: verifyData.message || 'Payment not successful.' });
             }
 
         } catch (error: any) {
-            console.error('STK Query error:', error.message);
-            return (res as any).status(500).json({ error: 'Transaction status check failed.' });
+            console.error('Paystack Verify error:', error.message);
+            return (res as any).status(500).json({ error: 'Transaction verification failed.' });
         }
     },
 );
