@@ -70,7 +70,18 @@ const fetchWithAuth = async (endpoint: string, options: any = {}) => {
         headers
     });
 
-    if (!res.ok) throw new Error(`Request failed: ${res.statusText}`);
+    if (!res.ok) {
+        let errorMsg = `Request failed: ${res.statusText}`;
+        try {
+            const errData = await res.json();
+            if (errData && errData.error) {
+                errorMsg = errData.error;
+            } else if (errData && errData.message) {
+                errorMsg = errData.message;
+            }
+        } catch (e) {}
+        throw new Error(errorMsg);
+    }
     return res.json();
 };
 

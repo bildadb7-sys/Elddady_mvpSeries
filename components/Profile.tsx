@@ -985,28 +985,10 @@ const Profile: React.FC<ProfileProps> = ({ user, isOwner: propIsOwner = false, o
     const handleFundWallet = async (amount: number, method: string, phone?: string) => {
         try {
             const result = await api.fundWallet(amount, method, phone);
-            if (result.access_code) {
-                const paystack = new (window as any).PaystackPop();
-                paystack.resumeTransaction(result.access_code, {
-                    onSuccess: async (transaction: any) => {
-                        try {
-                            const verifyResult = await api.verifyPaystackTransaction(transaction.reference);
-                            if (verifyResult.status === 'completed') {
-                                await fetchWalletData();
-                                alert(`Funds added successfully via Paystack!`);
-                            } else {
-                                alert(verifyResult.message || "Payment verification failed.");
-                            }
-                        } catch (err: any) {
-                            alert(err.message || "Failed to verify transaction");
-                        }
-                    },
-                    onCancel: () => {
-                        alert("Payment was cancelled.");
-                    }
-                });
+            if (result.success) {
+                alert(result.message || "Please check your phone for the M-Pesa PIN prompt.");
             } else {
-                alert("Failed to initialize Paystack payment.");
+                alert(result.error || "Failed to initialize deposit.");
             }
         } catch (e: any) {
             alert(e.message || "Failed to fund wallet");
