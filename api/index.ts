@@ -392,6 +392,21 @@ app.post('/api/admin/ban-user',
     }
 );
 
+// Helper functions for Paystack phone formatting
+const formatPhoneForCharge = (phone: string) => {
+    let p = phone.replace(/\D/g, ''); // strip non-digits
+    if (p.startsWith('0')) p = '254' + p.substring(1);
+    if (!p.startsWith('254')) p = '254' + p; // fallback
+    return '+' + p;
+};
+
+const formatPhoneForTransfer = (phone: string) => {
+    let p = phone.replace(/\D/g, '');
+    if (p.startsWith('254')) p = '0' + p.substring(3);
+    if (!p.startsWith('0')) p = '0' + p; // fallback
+    return p;
+};
+
 // 5. Paystack Charge API (Direct STK Push)
 app.post('/api/paystack/charge',
     verifyToken,
@@ -420,7 +435,7 @@ app.post('/api/paystack/charge',
                 amount: Math.ceil(Number(amount)) * 100, // Paystack expects amount in lowest denomination (e.g., kobo/cents)
                 currency: 'KES',
                 mobile_money: {
-                    phone: phone,
+                    phone: formatPhoneForCharge(phone),
                     provider: 'mpesa'
                 },
                 metadata: {
@@ -510,7 +525,7 @@ app.post('/api/wallet/withdraw',
                 body: JSON.stringify({
                     type: "mobile_money",
                     name: recipientName,
-                    account_number: details, // M-Pesa Phone Number
+                    account_number: formatPhoneForTransfer(details), // M-Pesa Phone Number
                     bank_code: "mpesa",
                     currency: "KES"
                 })
