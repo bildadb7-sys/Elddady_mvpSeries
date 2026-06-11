@@ -229,6 +229,7 @@ const WalletTab: React.FC<{
     const [showFundModal, setShowFundModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [fundAmount, setFundAmount] = useState('');
+    const [mpesaPhone, setMpesaPhone] = useState('');
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [withdrawDetails, setWithdrawDetails] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -267,14 +268,16 @@ const WalletTab: React.FC<{
     const handleFundSubmit = async () => {
         const amount = parseFloat(fundAmount);
         if (isNaN(amount) || amount <= 0) return alert("Please enter a valid amount");
+        if (!mpesaPhone) return alert("Please enter your M-Pesa phone number");
 
         setIsProcessing(true);
         try {
-            await onFund(amount, 'Paystack');
+            await onFund(amount, 'M-Pesa', mpesaPhone);
             setShowFundModal(false);
             setFundAmount('');
-        } catch (e) {
-            alert("Funding failed. Please try again.");
+            setMpesaPhone('');
+        } catch (e: any) {
+            alert(e.message || "Funding failed. Please try again.");
         } finally {
             setIsProcessing(false);
         }
@@ -380,6 +383,19 @@ const WalletTab: React.FC<{
                                     />
                                 </div>
                             </div>
+                            
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-muted-foreground uppercase ml-1">
+                                    M-Pesa Phone Number
+                                </label>
+                                <input
+                                    type="text"
+                                    value={mpesaPhone}
+                                    onChange={(e) => setMpesaPhone(e.target.value)}
+                                    placeholder="+254 7XX XXX XXX"
+                                    className="w-full px-5 py-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-[#E86C44]/20 focus:border-[#E86C44] outline-none font-bold"
+                                />
+                            </div>
 
                             <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex items-center gap-4">
                                 <i className="fas fa-shield-alt text-blue-500 text-2xl"></i>
@@ -391,20 +407,18 @@ const WalletTab: React.FC<{
 
                             <button
                                 onClick={handleFundSubmit}
-                                disabled={isProcessing || !fundAmount}
+                                disabled={isProcessing || !fundAmount || !mpesaPhone}
                                 className="w-full py-5 bg-[#E86C44] text-white rounded-2xl font-black text-sm tracking-widest hover:brightness-110 shadow-xl shadow-[#E86C44]/30 flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:pointer-events-none"
                             >
                                 {isProcessing ? (
                                     <><i className="fas fa-circle-notch fa-spin"></i> INITIALIZING...</>
                                 ) : (
-                                    <><i className="fas fa-lock"></i> SECURE DEPOSIT</>
+                                    <><i className="fas fa-lock"></i> PUSH TO M-PESA</>
                                 )}
                             </button>
 
                             <p className="text-[10px] text-center text-muted-foreground font-bold px-4 leading-relaxed">
-                                {fundMethod === 'mpesa'
-                                    ? "Wait for the M-Pesa PIN prompt on your phone after clicking."
-                                    : "Transactions are encrypted and secured by PCIDSS standards."}
+                                Wait for the M-Pesa PIN prompt on your phone after clicking.
                             </p>
                         </div>
                     </div>

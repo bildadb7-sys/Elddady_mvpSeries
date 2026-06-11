@@ -1715,16 +1715,12 @@ export const api = {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
-        const res = await fetchWithAuth('/paystack/initialize', {
+        const res = await fetchWithAuth('/paystack/charge', {
             method: 'POST',
-            body: JSON.stringify({ amount })
+            body: JSON.stringify({ amount, phone })
         });
         
-        return {
-            access_code: res.access_code,
-            reference: res.reference,
-            authorization_url: res.authorization_url
-        };
+        return res; // returns { success, message, reference, status }
     },
 
     withdrawWallet: async (amount: number, method: string, details: string) => {

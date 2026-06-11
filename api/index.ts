@@ -388,15 +388,16 @@ app.post('/api/admin/ban-user',
             return (res as any).status(500).json({ error: authError.message });
         }
 
-        (res as any).json({ success: true });
+        return (res as any).json({ success: true });
     }
 );
 
-// 5. Paystack Initialize Transaction
-app.post('/api/paystack/initialize',
+// 5. Paystack Charge API (Direct STK Push)
+app.post('/api/paystack/charge',
     verifyToken,
     [
         body('amount').isNumeric().withMessage('Amount must be a number'),
+        body('phone').trim().escape().notEmpty().withMessage('Phone number is required'),
     ],
     validate,
     async (req: Request, res: Response) => {
@@ -407,7 +408,7 @@ app.post('/api/paystack/initialize',
             return (res as any).status(503).json({ error: 'Paystack is not configured. Missing secret key.' });
         }
 
-        const { amount } = (req as any).body;
+        const { amount, phone } = (req as any).body;
 
         try {
             // Fetch user's email from profile
@@ -417,13 +418,17 @@ app.post('/api/paystack/initialize',
             const payload = {
                 email,
                 amount: Math.ceil(Number(amount)) * 100, // Paystack expects amount in lowest denomination (e.g., kobo/cents)
+                mobile_money: {
+                    phone: phone,
+                    provider: 'mpesa'
+                },
                 metadata: {
                     user_id: userId,
                     purpose: 'wallet_topup'
                 }
             };
 
-            const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
+            const paystackRes = await fetch('https://api.paystack.co/charge', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
@@ -435,26 +440,26 @@ app.post('/api/paystack/initialize',
             const data = await paystackRes.json() as any;
 
             if (!paystackRes.ok || !data.status) {
-                console.error('Paystack initialize error:', data);
+                console.error('Paystack charge error:', data);
                 return (res as any).status(502).json({
                     error: data.message || 'Paystack API error',
                     details: data,
                 });
             }
 
-            console.log(`✅ Paystack initialized — Reference: ${data.data.reference}`);
+            console.log(`✅ Paystack Charge initiated — Reference: ${data.data.reference}`);
             return (res as any).json({
                 success: true,
-                access_code: data.data.access_code,
+                message: data.data.display_text || 'Please check your phone to enter your M-Pesa PIN',
                 reference: data.data.reference,
-                authorization_url: data.data.authorization_url,
+                status: data.data.status
             });
 
         } catch (error: any) {
-            console.error('Paystack initialize error:', error.message);
+            console.error('Paystack charge error:', error.message);
             return (res as any).status(500).json({ error: 'Failed to initiate payment: ' + error.message });
         }
-    },
+    }
 );
 
 // 6. Paystack Verify Transaction
