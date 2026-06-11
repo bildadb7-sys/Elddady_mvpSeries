@@ -579,6 +579,39 @@ app.post('/api/paystack/webhook', async (req: Request, res: Response) => {
                         }
                     }
                 }
+            } else if (event.event === 'transfer.failed' || event.event === 'transfer.reversed') {
+                const data = event.data;
+                const reference = data.reference;
+                const amount = data.amount / 100;
+                const userId = data.metadata?.user_id;
+
+                if (userId && reference) {
+                    const lockKey = `paystack_transfer_failed:${reference}`;
+                    let alreadyProcessed = false;
+                    
+                    if (redis && redis.status === 'ready') {
+                        const processed = await redis.get(lockKey);
+                        if (processed) alreadyProcessed = true;
+                    }
+
+                    if (!alreadyProcessed) {
+                        // Refund the user since the transfer failed!
+                        const { error } = await supabase.rpc('fund_wallet', {
+                            user_uuid: userId,
+                            amount: amount,
+                            reference: `refund_failed_transfer_${reference}`
+                        });
+
+                        if (!error || error.message.includes('duplicate key value violates unique constraint')) {
+                            if (redis && redis.status === 'ready') {
+                                await redis.set(lockKey, '1', 'EX', 86400 * 30);
+                            }
+                            console.log(`✅ [Paystack Webhook] Refunded KSH ${amount} to ${userId} due to failed transfer.`);
+                        } else {
+                            console.error('[Paystack Webhook] Refund RPC Error:', error.message);
+                        }
+                    }
+                }
             }
         }
     } catch (err: any) {
@@ -1137,6 +1170,10 @@ app.post('/api/wallet/withdraw',
         const userId = (req as any).user?.id;
         if (!userId) return (res as any).status(401).send("Unauthorized");
 
+        if (!PAYSTACK_SECRET_KEY) {
+            return (res as any).status(503).json({ error: 'Paystack is not configured. Missing secret key.' });
+        }
+
         const { amount, method, details } = (req as any).body;
         const withdrawAmount = Number(amount);
 
@@ -1156,13 +1193,66 @@ app.post('/api/wallet/withdraw',
                 return (res as any).status(400).json({ error: "Insufficient funds or error processing withdrawal" });
             }
 
-            // Here we would integrate actual M-Pesa B2C or Bank Transfer execution.
-            // For now, we deduct the balance to satisfy the immediate user request.
+            // Retrieve User info for the transfer name
+            const { data: userProfile } = await supabase.from('profiles').select('name').eq('id', userId).single();
+            const recipientName = userProfile?.name || 'Cashy Wallet User';
+
+            // 1. Create Transfer Recipient
+            const createRecipientRes = await fetch('https://api.paystack.co/transferrecipient', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: "mobile_money",
+                    name: recipientName,
+                    account_number: details, // M-Pesa Phone Number
+                    bank_code: "MPESA",
+                    currency: "KES"
+                })
+            });
+
+            const recipientData = await createRecipientRes.json();
+
+            if (!createRecipientRes.ok || !recipientData.status) {
+                console.error("Paystack Recipient Error:", recipientData);
+                // Refund the user!
+                await supabase.rpc('fund_wallet', { user_uuid: userId, amount: withdrawAmount, reference: `refund_recipient_${Date.now()}` });
+                return (res as any).status(400).json({ error: "Invalid M-Pesa number or Paystack configuration error." });
+            }
+
+            const recipientCode = recipientData.data.recipient_code;
+
+            // 2. Initiate Transfer
+            const transferRes = await fetch('https://api.paystack.co/transfer', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    source: "balance",
+                    amount: withdrawAmount * 100, // convert to lowest denomination (kobo/cents)
+                    recipient: recipientCode,
+                    reason: "Elddady Cashy Wallet Withdrawal",
+                    metadata: { user_id: userId, method: 'mpesa' }
+                })
+            });
+
+            const transferData = await transferRes.json();
+
+            if (!transferRes.ok || !transferData.status) {
+                console.error("Paystack Transfer Error:", transferData);
+                // Refund the user!
+                await supabase.rpc('fund_wallet', { user_uuid: userId, amount: withdrawAmount, reference: `refund_transfer_${Date.now()}` });
+                return (res as any).status(400).json({ error: transferData.message || "Failed to initiate transfer from Paystack balance. Please contact support." });
+            }
 
             return (res as any).json({ 
                 success: true, 
                 newBalance, 
-                message: `Withdrawal of ${withdrawAmount} via ${method} initiated. Funds will reflect shortly.`
+                message: `Withdrawal of KSH ${withdrawAmount} via M-Pesa initiated. Funds will reflect shortly.`
             });
         } catch (e: any) {
             console.error("Withdrawal error:", e.message);

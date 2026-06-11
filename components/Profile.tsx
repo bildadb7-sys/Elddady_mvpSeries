@@ -230,9 +230,6 @@ const WalletTab: React.FC<{
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [fundAmount, setFundAmount] = useState('');
     const [withdrawAmount, setWithdrawAmount] = useState('');
-    const [fundMethod, setFundMethod] = useState<'mpesa' | 'card'>('mpesa');
-    const [withdrawMethod, setWithdrawMethod] = useState<'mpesa' | 'bank'>('mpesa');
-    const [mpesaPhone, setMpesaPhone] = useState('');
     const [withdrawDetails, setWithdrawDetails] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
@@ -290,7 +287,7 @@ const WalletTab: React.FC<{
 
         setIsWithdrawing(true);
         try {
-            await onWithdraw(amount, withdrawMethod === 'mpesa' ? 'M-Pesa' : 'Bank', withdrawDetails);
+            await onWithdraw(amount, 'M-Pesa', withdrawDetails);
             setShowWithdrawModal(false);
             setWithdrawAmount('');
             setWithdrawDetails('');
@@ -439,30 +436,15 @@ const WalletTab: React.FC<{
                                         className="w-full bg-background border-2 border-border focus:border-[#E86C44] rounded-2xl pl-14 pr-4 py-4 font-black text-2xl outline-none transition-all"
                                     />
                                 </div>
-                            </div>
-                            <div className="flex p-1.5 bg-muted rounded-2xl gap-1">
-                                <button
-                                    onClick={() => setWithdrawMethod('mpesa')}
-                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${withdrawMethod === 'mpesa' ? 'bg-white shadow-sm text-[#E86C44]' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    <i className="fas fa-mobile-alt"></i> M-Pesa
-                                </button>
-                                <button
-                                    onClick={() => setWithdrawMethod('bank')}
-                                    className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${withdrawMethod === 'bank' ? 'bg-white shadow-sm text-[#E86C44]' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    <i className="fas fa-university"></i> Bank
-                                </button>
-                            </div>
-                            <div className="space-y-1">
+                            </div>                            <div className="space-y-1">
                                 <label className="text-[10px] font-black text-muted-foreground uppercase ml-1">
-                                    {withdrawMethod === 'mpesa' ? 'M-Pesa Phone Number' : 'Bank Account Details'}
+                                    M-Pesa Phone Number
                                 </label>
                                 <input
                                     type="text"
                                     value={withdrawDetails}
                                     onChange={(e) => setWithdrawDetails(e.target.value)}
-                                    placeholder={withdrawMethod === 'mpesa' ? "254 7XX XXX XXX" : "Account Number & Bank Name"}
+                                    placeholder="254 7XX XXX XXX"
                                     className="w-full px-5 py-4 bg-background border border-border rounded-2xl focus:ring-2 focus:ring-[#E86C44]/20 focus:border-[#E86C44] outline-none font-bold"
                                 />
                             </div>
