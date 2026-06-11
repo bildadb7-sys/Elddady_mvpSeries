@@ -537,6 +537,57 @@ app.post('/api/paystack/verify',
         }
     },
 );
+// 7. Paystack Webhook
+app.post('/api/paystack/webhook', async (req: Request, res: Response) => {
+    try {
+        const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY)
+                           .update(JSON.stringify(req.body))
+                           .digest('hex');
+                           
+        if (hash === req.headers['x-paystack-signature']) {
+            const event = req.body;
+            
+            if (event.event === 'charge.success') {
+                const data = event.data;
+                const reference = data.reference;
+                const amount = data.amount / 100; // Convert kobo/cents back to main currency
+                const userId = data.metadata?.user_id;
+
+                if (userId && reference) {
+                    const lockKey = `paystack_processed:${reference}`;
+                    let alreadyProcessed = false;
+                    
+                    if (redis && redis.status === 'ready') {
+                        const processed = await redis.get(lockKey);
+                        if (processed) alreadyProcessed = true;
+                    }
+
+                    if (!alreadyProcessed) {
+                        const { error } = await supabase.rpc('fund_wallet', {
+                            user_uuid: userId,
+                            amount: amount,
+                            reference: reference,
+                        });
+
+                        if (!error || error.message.includes('duplicate key value violates unique constraint')) {
+                            if (redis && redis.status === 'ready') {
+                                await redis.set(lockKey, '1', 'EX', 86400 * 30); // Cache for 30 days
+                            }
+                            console.log(`✅ [Paystack Webhook] Wallet credited KSH ${amount} for ${userId}`);
+                        } else {
+                            console.error('[Paystack Webhook] RPC Error:', error.message);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (err: any) {
+        console.error('Webhook error:', err.message);
+    }
+    
+    // Always return 200 OK to acknowledge receipt
+    return (res as any).sendStatus(200);
+});
 
 // Helper to get the Elddady superuser ID for system messages
 const getSystemSenderId = async (fallbackId: string) => {
