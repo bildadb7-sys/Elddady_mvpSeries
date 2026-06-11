@@ -418,6 +418,7 @@ app.post('/api/paystack/charge',
             const payload = {
                 email,
                 amount: Math.ceil(Number(amount)) * 100, // Paystack expects amount in lowest denomination (e.g., kobo/cents)
+                currency: 'KES',
                 mobile_money: {
                     phone: phone,
                     provider: 'mpesa'
@@ -458,6 +459,105 @@ app.post('/api/paystack/charge',
         } catch (error: any) {
             console.error('Paystack charge error:', error.message);
             return (res as any).status(500).json({ error: 'Failed to initiate payment: ' + error.message });
+        }
+    }
+);
+
+// 5b. Withdraw API (Paystack Transfers)
+app.post('/api/wallet/withdraw',
+    verifyToken,
+    [
+        body('amount').isNumeric().withMessage('Amount must be a number'),
+        body('method').trim().escape().notEmpty(),
+        body('details').trim().escape().notEmpty(),
+    ],
+    validate,
+    async (req: Request, res: Response) => {
+        const userId = (req as any).user?.id;
+        if (!userId) return (res as any).status(401).send('Unauthorized');
+
+        if (!PAYSTACK_SECRET_KEY) {
+            return (res as any).status(503).json({ error: 'Paystack is not configured.' });
+        }
+
+        const { amount, details } = (req as any).body;
+        const withdrawAmount = Number(amount);
+
+        if (withdrawAmount <= 0) return (res as any).status(400).json({ error: "Invalid amount" });
+
+        try {
+            // 1. Deduct from Supabase immediately
+            const { error: withdrawError } = await supabase.rpc('withdraw_wallet', {
+                user_uuid: userId,
+                amount: withdrawAmount,
+                reference: `withdraw_init_${Date.now()}`
+            });
+
+            if (withdrawError) {
+                console.error("Supabase Withdraw Error:", withdrawError.message);
+                return (res as any).status(400).json({ error: withdrawError.message });
+            }
+
+            // 2. Create Paystack Transfer Recipient
+            const recipientName = `User ${userId.substring(0, 8)}`; // Replace with user's real name if needed
+            
+            const createRecipientRes = await fetch("https://api.paystack.co/transferrecipient", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    type: "mobile_money",
+                    name: recipientName,
+                    account_number: details, // M-Pesa Phone Number
+                    bank_code: "mpesa",
+                    currency: "KES"
+                })
+            });
+
+            const recipientData = await createRecipientRes.json() as any;
+
+            if (!createRecipientRes.ok || !recipientData.status) {
+                console.error("Paystack Recipient Error:", recipientData);
+                // Refund the user!
+                await supabase.rpc('fund_wallet', { user_uuid: userId, amount: withdrawAmount, reference: `refund_recipient_${Date.now()}` });
+                return (res as any).status(400).json({ error: recipientData.message || "Invalid M-Pesa number or Paystack configuration error." });
+            }
+
+            const recipientCode = recipientData.data.recipient_code;
+
+            // 3. Initiate Transfer
+            const transferRes = await fetch("https://api.paystack.co/transfer", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    source: "balance",
+                    amount: Math.ceil(withdrawAmount * 100), // Kobo/Cents
+                    recipient: recipientCode,
+                    reason: `Withdrawal for ${userId}`,
+                    currency: "KES"
+                })
+            });
+
+            const transferData = await transferRes.json() as any;
+
+            if (!transferRes.ok || !transferData.status) {
+                console.error("Paystack Transfer Error:", transferData);
+                // Refund the user
+                await supabase.rpc('fund_wallet', { user_uuid: userId, amount: withdrawAmount, reference: `refund_transfer_${Date.now()}` });
+                return (res as any).status(400).json({ error: transferData.message || "Transfer failed. Please contact support." });
+            }
+
+            // Successfully pushed to Paystack!
+            return (res as any).json({ success: true, message: "Withdrawal initiated successfully via Paystack." });
+
+        } catch (error: any) {
+            console.error("Withdraw Error:", error.message);
+            return (res as any).status(500).json({ error: "Internal Server Error" });
         }
     }
 );
