@@ -305,13 +305,13 @@ const WalletTab: React.FC<{
         <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
             {/* Wallet Card */}
             <div className="bg-gradient-to-br from-[#E86C44] to-[#c05634] rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-1/4 -translate-y-1/4">
+                {/* <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-1/4 -translate-y-1/4">
                     <i className="fas fa-wallet text-9xl"></i>
-                </div>
+                </div> */}
 
                 <div className="relative z-10">
-                    <div className="flex justify-between items-start mb-2">
-                        <h2 className="text-sm font-bold uppercase tracking-wider opacity-90">Total Balance</h2>
+                    <div className="flex justify-end items-start mb-2">
+                        {/* <h2 className="text-sm font-bold uppercase tracking-wider opacity-90">Total Balance</h2> */}
 
                         {/* Currency Picker from Context */}
                         <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-lg px-2 py-1 backdrop-blur-sm">
@@ -326,8 +326,7 @@ const WalletTab: React.FC<{
                         </div>
                     </div>
 
-                    <div className="text-5xl font-black mb-8 tracking-tighter flex items-baseline">
-                        {/* Use formatted price but strip symbol for custom styling here */}
+                    {/* <div className="text-5xl font-black mb-8 tracking-tighter flex items-baseline">
                         <span className="text-xl mr-2 font-bold opacity-60">{userCurrency}</span>
                         {convertPrice(balance, baseCurrency).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
@@ -352,7 +351,7 @@ const WalletTab: React.FC<{
                             <i className="fas fa-shield-alt text-green-400"></i>
                             Secured Escrow
                         </div>
-                    </div>
+                    </div> */}
                 </div>
             </div>
 
